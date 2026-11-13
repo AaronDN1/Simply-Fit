@@ -6,6 +6,7 @@ import { ArrowUp, Check, Pencil, RotateCcw, Sparkles, Trash2 } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { Segmented } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
+import { AiInputTools, type AiAttachment } from "@/components/app/ai-input-tools";
 import { useStore } from "@/lib/store";
 import { apiPost } from "@/lib/api";
 import { mealForTime, type EstimateItem, type EstimateResult } from "@/lib/foods";
@@ -27,6 +28,7 @@ export function NutritionChat({ date = todayISO(), remaining }: { date?: string;
   const toast = useToast();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
+  const [attachments, setAttachments] = useState<AiAttachment[]>([]);
   const [thinking, setThinking] = useState(false);
   const [estimate, setEstimate] = useState<{ items: EstimateItem[]; meal: Meal; engine: string } | null>(null);
   const [logged, setLogged] = useState<{ calories: number; meal: Meal } | null>(null);
@@ -40,16 +42,20 @@ export function NutritionChat({ date = todayISO(), remaining }: { date?: string;
 
   async function send(text: string) {
     const content = text.trim();
-    if (!content || thinking) return;
+    if ((!content && !attachments.length) || thinking) return;
     setLogged(null);
-    const next = [...messages, { id: uid(), role: "user" as const, content }];
+    const attachmentNote = attachments.length ? ` [${attachments.map((a) => a.type).join(", ")} attached]` : "";
+    const next = [...messages, { id: uid(), role: "user" as const, content: content || "Please review the attached input." }];
+    const currentAttachments = attachments;
     setMessages(next);
     setInput("");
+    setAttachments([]);
     setEstimate(null);
     setThinking(true);
     try {
       const res = await apiPost<EstimateResult & { engine: string }>("/api/ai/nutrition", {
-        messages: next.map(({ role, content }) => ({ role, content })),
+        messages: next.map(({ role, content }, index) => ({ role, content: index === next.length - 1 ? `${content}${attachmentNote}` : content })),
+        attachments: currentAttachments,
         context: {
           remainingCalories: remaining,
           dietaryPreferences: data.profile.settings.privacy.aiUsesHistory ? data.profile.intake?.dietaryPreferences : undefined,
@@ -180,7 +186,7 @@ export function NutritionChat({ date = todayISO(), remaining }: { date?: string;
       </div>
 
       <form
-        className="border-t border-line p-3"
+        className="relative border-t border-line p-3"
         onSubmit={(e) => {
           e.preventDefault();
           send(input);
@@ -202,7 +208,10 @@ export function NutritionChat({ date = todayISO(), remaining }: { date?: string;
             aria-label="Describe what you ate"
             className="max-h-32 min-h-[36px] flex-1 resize-none bg-transparent py-2 text-[15px] outline-none placeholder:text-faint"
           />
-          <button type="submit" disabled={!input.trim() || thinking} className="grid size-9 shrink-0 place-items-center rounded-full bg-ink text-canvas transition-opacity disabled:opacity-30" aria-label="Send">
+          <div className="absolute -translate-y-11">
+            <AiInputTools attachments={attachments} onChange={setAttachments} disabled={thinking} />
+          </div>
+          <button type="submit" disabled={(!input.trim() && !attachments.length) || thinking} className="grid size-9 shrink-0 place-items-center rounded-full bg-ink text-canvas transition-opacity disabled:opacity-30" aria-label="Send">
             <ArrowUp className="size-4" />
           </button>
         </div>

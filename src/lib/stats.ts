@@ -1,7 +1,7 @@
 import type { CardioEntry, DailyLog, FoodEntry, Plan, Profile, Settings, Split, WorkoutLog } from "./types";
 import { addDays, lastNDays, toISODate, todayISO, weekdayIndex } from "./utils";
 import { displayWeight } from "./units";
-import { trainedExercises, exerciseHistory } from "./workouts";
+import { dayForDate, trainedExercises, exerciseHistory } from "./workouts";
 
 export interface DayTotals {
   calories: number;
@@ -109,7 +109,7 @@ export function workoutCompletion(logs: WorkoutLog[], split: Split | null, days 
   let scheduled = 0;
   let completed = 0;
   for (const d of range) {
-    const day = split?.days[weekdayIndex(d)];
+    const day = dayForDate(split, d);
     const done = logs.some((l) => l.date === d && l.completedAt);
     if (day && !day.isRest) {
       if (!done && d === todayISO()) continue;

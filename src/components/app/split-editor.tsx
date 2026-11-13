@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowDown, ArrowUp, ChevronDown, Plus, RotateCcw, Search, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,22 +8,30 @@ import { Badge, Card } from "@/components/ui/card";
 import { Input, Textarea, Toggle } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
 import { useToast } from "@/components/ui/toast";
+import { AiInputTools, type AiAttachment } from "@/components/app/ai-input-tools";
+import { WorkoutCheckoff } from "@/components/app/workout-checkoff";
 import { useStore } from "@/lib/store";
 import { apiPost } from "@/lib/api";
 import type { PlannedExercise, Split, WorkoutDay } from "@/lib/types";
-import { EXERCISES, plannedFrom, recommendedSplit, TOOLS_FOR } from "@/lib/workouts";
+import { BASIC_TEMPLATES, EXERCISES, plannedFrom, recommendedSplit, templateSplit, TOOLS_FOR } from "@/lib/workouts";
 import { cn, uid, weekdayIndex, todayISO, WEEKDAYS } from "@/lib/utils";
 
 export function SplitEditor() {
   const { data, updateProfile } = useStore();
   const toast = useToast();
   const intake = data.profile.intake!;
-  const saved = data.profile.split ?? recommendedSplit(intake, data.profile.plan!.levers.liftingDays);
+  const saved = useMemo(
+    () => data.profile.split ?? recommendedSplit(intake, data.profile.plan!.levers.liftingDays),
+    [data.profile.split, intake, data.profile.plan?.levers.liftingDays]
+  );
   const [split, setSplit] = useState<Split>(saved);
   const [openDay, setOpenDay] = useState<number | null>(weekdayIndex(todayISO()));
   const [picker, setPicker] = useState<number | null>(null);
   const [ai, setAi] = useState(false);
   const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    setSplit(saved);
+  }, [saved]);
   const dirty = JSON.stringify(split) !== JSON.stringify(saved);
 
   const setDay = (i: number, patch: Partial<WorkoutDay>) => setSplit((s) => ({ ...s, source: s.source === "recommended" ? "custom" : s.source, days: s.days.map((d, j) => (j === i ? { ...d, ...patch } : d)) }));
@@ -48,6 +56,8 @@ export function SplitEditor() {
   }
 
   const trainingDays = split.days.filter((d) => !d.isRest).length;
+  const todayDay = split.days[weekdayIndex(todayISO())];
+  const todayLog = data.workouts.find((w) => w.date === todayISO());
 
   return (
     <div>
@@ -58,10 +68,11 @@ export function SplitEditor() {
             <Badge tone={split.source === "ai" ? "sky" : split.source === "custom" ? "honey" : "accent"}>{split.source === "ai" ? "AI-built" : split.source === "custom" ? "Custom" : "Recommended"}</Badge>
           </p>
           <p className="text-[13px] text-muted">
-            {trainingDays} training days · {7 - trainingDays} rest
+            {split.rotation ? `${trainingDays} training-day rotation · rest as needed` : `${trainingDays} training days · ${7 - trainingDays} rest`}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {todayDay && !todayDay.isRest && <WorkoutCheckoff day={todayDay} log={todayLog} compact />}
           <Button variant="secondary" size="sm" onClick={() => setSplit(recommendedSplit(intake, data.profile.plan!.levers.liftingDays))}>
             <RotateCcw className="size-3.5" /> Recommended
           </Button>
@@ -71,13 +82,29 @@ export function SplitEditor() {
         </div>
       </div>
 
+      <div className="mb-5 rounded-2xl border border-line bg-canvas p-3.5">
+        <p className="mb-2 text-[12px] font-medium uppercase tracking-[0.1em] text-muted">Start from a template</p>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {BASIC_TEMPLATES.map((template) => (
+            <button
+              key={template.id}
+              onClick={() => setSplit(templateSplit(intake, template.id))}
+              className="rounded-xl border border-line bg-surface px-3 py-2.5 text-left transition-colors hover:border-line-strong"
+            >
+              <span className="block text-[13px] font-medium">{template.label}</span>
+              <span className="block text-[11px] text-muted">{template.description}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="space-y-2">
         {split.days.map((d, i) => {
           const isOpen = openDay === i;
           return (
             <Card key={d.id} className="overflow-hidden">
               <button onClick={() => setOpenDay(isOpen ? null : i)} className="flex w-full items-center gap-3 px-4 py-3.5 text-left sm:px-5" aria-expanded={isOpen}>
-                <span className="w-10 text-[12px] font-medium uppercase tracking-wide text-muted">{WEEKDAYS[i].slice(0, 3)}</span>
+                <span className="w-10 text-[12px] font-medium uppercase tracking-wide text-muted">{split.rotation ? `Day ${i + 1}` : WEEKDAYS[i]?.slice(0, 3)}</span>
                 <span className="min-w-0 flex-1">
                   <span className={cn("block truncate text-[15px] font-medium", d.isRest && "text-muted")}>{d.isRest ? "Rest" : d.name}</span>
                   {!d.isRest && <span className="block truncate text-[12px] text-muted">{d.exercises.length} exercises · {d.focus}</span>}
@@ -179,7 +206,17 @@ export function SplitEditor() {
           setPicker(null);
         }}
       />
-      <AiSplitSheet open={ai} onClose={() => setAi(false)} current={split} onApply={(s) => setSplit(s)} />
+      <AiSplitSheet
+        open={ai}
+        onClose={() => setAi(false)}
+        current={split}
+        onApply={async (s) => {
+          const next = s.rotation ? { ...s, rotation: { ...s.rotation, startDate: todayISO(), days: s.days } } : s;
+          setSplit(next);
+          await updateProfile({ split: next });
+          toast("AI plan saved for your rotation");
+        }}
+      />
     </div>
   );
 }
@@ -220,20 +257,32 @@ function ExercisePicker({ open, onClose, onPick, equipment }: { open: boolean; o
   );
 }
 
-function AiSplitSheet({ open, onClose, current, onApply }: { open: boolean; onClose: () => void; current: Split; onApply: (s: Split) => void }) {
+function AiSplitSheet({ open, onClose, current, onApply }: { open: boolean; onClose: () => void; current: Split; onApply: (s: Split) => Promise<void> | void }) {
   const { data } = useStore();
   const toast = useToast();
   const [text, setText] = useState("");
+  const [attachments, setAttachments] = useState<AiAttachment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [applying, setApplying] = useState(false);
   const [result, setResult] = useState<{ reply: string; split: Split; engine: string } | null>(null);
+  const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const intake = data.profile.intake!;
 
   async function ask() {
+    if (loading) return;
     setLoading(true);
+    const currentAttachments = attachments;
+    setAttachments([]);
     try {
       const summary = current.days.map((d, i) => `${WEEKDAYS[i]}: ${d.isRest ? "Rest" : `${d.name} — ${d.exercises.map((e) => `${e.name} ${e.sets}x${e.repsMin}-${e.repsMax}`).join(", ")}`}`).join("\n");
+      const userMessage = text.trim() || "Please review the attached workout input.";
+      const conversation = [...messages, { role: "user" as const, content: userMessage }]
+        .slice(-6)
+        .map((m) => `${m.role === "user" ? "User" : "Coach"}: ${m.content}`)
+        .join("\n");
       const res = await apiPost<{ reply: string; split: Split; engine: string }>("/api/ai/coach", {
-        request: text,
+        request: conversation.slice(-780),
+        attachments: currentAttachments,
         profile: {
           goal: intake.goal,
           experience: intake.experience,
@@ -245,6 +294,8 @@ function AiSplitSheet({ open, onClose, current, onApply }: { open: boolean; onCl
         currentSplit: summary,
       });
       setResult(res);
+      setMessages((m) => [...m, { role: "user", content: userMessage }, { role: "assistant", content: res.reply }]);
+      setText("");
     } catch (e) {
       toast(e instanceof Error ? e.message : "Couldn't reach the coach", "error");
     } finally {
@@ -258,55 +309,73 @@ function AiSplitSheet({ open, onClose, current, onApply }: { open: boolean; onCl
       onClose={() => {
         onClose();
         setResult(null);
+      setMessages([]);
+      setText("");
       }}
       title="Build or revise with AI"
       description="Describe what you want. You'll review the result before anything changes."
       wide
     >
-      {!result ? (
-        <div className="space-y-3">
-          <Textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="e.g. 4 days a week, 45 minutes max, more focus on legs. I only have dumbbells on Fridays." rows={3} />
+      <div className="space-y-3">
+        {messages.length > 0 && (
+          <div className="max-h-48 space-y-2 overflow-y-auto rounded-2xl bg-canvas p-3">
+            {messages.map((m, i) => (
+              <div key={`${m.role}-${i}`} className={cn("rounded-xl px-3 py-2 text-[13px] leading-relaxed", m.role === "user" ? "ml-6 bg-surface" : "mr-6 bg-accent-tint text-accent-strong")}>
+                <span className="mb-0.5 block text-[10px] font-medium uppercase tracking-wide text-muted">{m.role === "user" ? "You" : "Coach"}</span>
+                {m.content}
+              </div>
+            ))}
+          </div>
+        )}
+        <Textarea value={text} onChange={(e) => setText(e.target.value)} placeholder={messages.length ? "Ask a follow-up, like “Can you detail today's exercises?”" : "e.g. 4 days a week, 45 minutes max, more focus on legs. I only have dumbbells on Fridays."} rows={3} />
+          <AiInputTools attachments={attachments} onChange={setAttachments} disabled={loading} />
           <div className="flex flex-wrap gap-1.5">
-            {["Make it 4 days a week", "Shorter sessions, 45 minutes", "More upper-body focus", "I'm traveling — no gym this week"].map((s) => (
+            {(messages.length ? ["Make the sessions shorter", "Detail today's exercises", "Add warm-up guidance", "Change the weekly schedule"] : ["Make it 4 days a week", "Shorter sessions, 45 minutes", "More upper-body focus", "I'm traveling — no gym this week"]).map((s) => (
               <button key={s} onClick={() => setText(s)} className="rounded-full border border-line px-3 py-1 text-[12px] text-ink-soft hover:border-line-strong">
                 {s}
               </button>
             ))}
           </div>
-          <Button className="w-full" onClick={ask} loading={loading} disabled={text.trim().length < 3}>
-            <Sparkles className="size-4" /> Create split
+          <Button className="w-full" onClick={ask} loading={loading} disabled={text.trim().length < 3 && !attachments.length}>
+            <Sparkles className="size-4" /> {messages.length ? "Continue with coach" : "Build split"}
           </Button>
-        </div>
-      ) : (
-        <div>
-          <p className="rounded-2xl bg-accent-tint px-4 py-3 text-[14px] leading-relaxed text-accent-strong">{result.reply}</p>
+        {result && (
+          <div className="border-t border-line pt-4">
+          <p className="text-[12px] font-medium uppercase tracking-[0.1em] text-muted">Current split preview</p>
           <ul className="mt-3 divide-y divide-line rounded-2xl border border-line">
             {result.split.days.map((d, i) => (
               <li key={d.id} className="flex gap-3 px-4 py-2.5 text-[13px]">
-                <span className="w-9 font-medium uppercase text-muted">{WEEKDAYS[i].slice(0, 3)}</span>
+                <span className="w-9 font-medium uppercase text-muted">{result.split.rotation ? `D${i + 1}` : WEEKDAYS[i]?.slice(0, 3)}</span>
                 <span className="flex-1">{d.isRest ? <span className="text-muted">Rest</span> : <><span className="font-medium">{d.name}</span> <span className="text-muted">· {d.exercises.map((e) => e.name).join(", ")}</span></>}</span>
               </li>
             ))}
           </ul>
           {result.engine === "offline" && <p className="mt-2 text-[12px] text-muted">Built with the offline planner. Add an OpenAI key for fully custom revisions.</p>}
           <div className="mt-4 flex gap-2">
-            <Button variant="secondary" onClick={() => setResult(null)}>
-              Try again
+            <Button variant="secondary" onClick={() => setText("Help me dig deeper into today's exercises")}>
+              Dig deeper
             </Button>
             <Button
               className="flex-1"
+              loading={applying}
+              disabled={applying}
               onClick={() => {
-                onApply(result.split);
-                onClose();
-                setResult(null);
-                toast("Review the new split, then save it");
+                setApplying(true);
+                void Promise.resolve(onApply(result.split))
+                  .then(() => {
+                    onClose();
+                    setResult(null);
+                  })
+                  .catch((e) => toast(e instanceof Error ? e.message : "Couldn't save the plan", "error"))
+                  .finally(() => setApplying(false));
               }}
             >
               Use this split
             </Button>
           </div>
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </Sheet>
   );
 }

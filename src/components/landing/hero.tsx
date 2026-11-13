@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, useMotionValue, useReducedMotion, useScroll, useSpring, useTransform, type MotionValue } from "motion/react";
+import { motion, useMotionValue, useScroll, useSpring, useTransform, type MotionValue } from "motion/react";
 import { ArrowRight, Check, Dumbbell, Footprints, Moon, Scale, Soup, Timer, Wheat } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 
@@ -142,15 +142,13 @@ function Caption({ progress, i }: { progress: MotionValue<number>; i: number }) 
 
 export function Hero() {
   const ref = useRef<HTMLDivElement>(null);
-  const prefersReduced = useReducedMotion();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  const reduce = mounted && Boolean(prefersReduced);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end end"] });
   const smooth = useSpring(scrollYProgress, { stiffness: 120, damping: 30, mass: 0.4 });
-  const settled = useMotionValue(1);
-  const progress = reduce ? settled : smooth;
-  const hintOpacity = useTransform(scrollYProgress, [0, 0.08], [1, 0]);
+  const initial = useMotionValue(0);
+  const progress = mounted ? smooth : initial;
+  const hintOpacity = useTransform(progress, [0, 0.08], [1, 0]);
 
   return (
     <section ref={ref} className="relative h-[260vh]">
@@ -194,13 +192,13 @@ export function Hero() {
               ))}
             </div>
           </div>
-          <div className="relative h-[470px] sm:h-[540px] lg:h-[620px]">
+          <div className={`relative h-[470px] sm:h-[540px] lg:h-[620px] ${!mounted ? "opacity-0" : ""}`}>
             <div className="absolute inset-x-0 top-2 sm:top-6">
               <TodayStage progress={progress} />
             </div>
           </div>
         </div>
-        {!reduce && (
+        {mounted && (
           <motion.div style={{ opacity: hintOpacity }} className="pointer-events-none absolute inset-x-0 bottom-6 flex justify-center">
             <span className="flex items-center gap-2 rounded-full border border-line bg-surface/80 px-3 py-1.5 text-[12px] text-muted backdrop-blur">
               <span className="relative block h-4 w-2.5 rounded-full border border-faint">

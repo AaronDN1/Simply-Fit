@@ -15,6 +15,7 @@ import { average, latest, sleepSeries, stepSeries, weightSeries, weightTrend } f
 import { displayWeight, formatWeight } from "@/lib/units";
 import { readinessAdvice, readinessScore } from "@/lib/plan";
 import { mealForTime } from "@/lib/foods";
+import { WorkoutCheckoff } from "@/components/app/workout-checkoff";
 import { cn, formatDay, greeting, lastNDays, todayISO } from "@/lib/utils";
 
 type DetailKey = "workout" | "cardio" | "steps" | "sleep" | "weight" | "recovery";
@@ -310,6 +311,9 @@ function Detail({ k, close }: { k: DetailKey; close: () => void }) {
                 </li>
               ))}
             </ol>
+            <div className="mt-4 flex justify-end">
+              <WorkoutCheckoff day={day} log={t.workoutLog} compact />
+            </div>
             <Link href="/training" className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-ink text-sm font-medium text-canvas">
               {t.workoutDone ? "View workout" : t.workoutLog ? "Continue workout" : "Start workout"} <ArrowRight className="size-4" />
             </Link>

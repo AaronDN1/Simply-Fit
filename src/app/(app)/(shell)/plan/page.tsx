@@ -11,10 +11,11 @@ import { Slider } from "@/components/ui/field";
 import { AnimatedNumber } from "@/components/ui/data";
 import { useStore } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
-import { buildPlan, calorieFloor, defaultLevers, explainTradeoff, GOAL_LABEL, maintenanceFrom, energyBreakdown, rateBounds, rateForCalories } from "@/lib/plan";
+import { applyMacroTargets, buildPlan, calorieFloor, defaultLevers, explainTradeoff, GOAL_LABEL, maintenanceFrom, energyBreakdown, MacroTargets, rateBounds, rateForCalories } from "@/lib/plan";
 import { displayWeight, formatRate } from "@/lib/units";
 import { recommendedSplit } from "@/lib/workouts";
-import type { PlanLevers } from "@/lib/types";
+import { MacroEditor } from "@/components/app/macro-editor";
+import type { Plan, PlanLevers } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 function PlanView() {
@@ -26,10 +27,17 @@ function PlanView() {
   const { intake, plan, split, settings } = data.profile;
   const units = settings.units;
   const [draft, setDraft] = useState<PlanLevers>(plan!.levers);
+  const [macroOverride, setMacroOverride] = useState<MacroTargets | null>(() =>
+    plan?.macrosCustomized ? { proteinG: plan.proteinG, carbsG: plan.carbsG, fatG: plan.fatG } : null
+  );
   const [saving, setSaving] = useState(false);
 
-  const preview = useMemo(() => buildPlan(intake!, draft, { units }), [intake, draft, units]);
-  const dirty = JSON.stringify(draft) !== JSON.stringify(plan!.levers);
+  const basePreview = useMemo(() => buildPlan(intake!, draft, { units }), [intake, draft, units]);
+  const preview = useMemo(
+    () => (macroOverride ? applyMacroTargets(intake!, basePreview, macroOverride, units) : basePreview),
+    [intake, basePreview, macroOverride, units]
+  );
+  const dirty = JSON.stringify(draft) !== JSON.stringify(plan!.levers) || macroOverride !== null;
   const tradeoffs = useMemo(() => (dirty ? explainTradeoff(intake!, plan!, preview, units) : []), [dirty, intake, plan, preview, units]);
 
   if (!intake || !plan) return null;
@@ -46,6 +54,7 @@ function PlanView() {
       const daysChanged = preview.levers.liftingDays !== plan!.levers.liftingDays;
       const regenerate = daysChanged && (!split || split.source === "recommended");
       await updateProfile({ plan: preview, split: regenerate ? recommendedSplit(intake!, preview.levers.liftingDays) : split });
+      setMacroOverride(null);
       toast(regenerate ? "Plan saved · training week updated" : "Plan saved");
       if (daysChanged && !regenerate) toast("Your custom split wasn't changed — adjust it in Training.", "success");
     } catch (e) {
@@ -53,6 +62,13 @@ function PlanView() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function saveMacros(next: Plan) {
+    await updateProfile({ plan: next });
+    setDraft(next!.levers);
+    setMacroOverride({ proteinG: next.proteinG, carbsG: next.carbsG, fatG: next.fatG });
+    toast("Macro targets saved");
   }
 
   const shown = preview;
@@ -99,9 +115,12 @@ function PlanView() {
                   Maintenance ≈ <span className="tabular text-ink-soft">{shown.maintenanceCalories.toLocaleString()}</span>
                 </p>
               </div>
-              <Badge tone="accent" className="px-3 py-1 text-[13px]">
-                {formatRate(shown.levers.weeklyRateKg, units)}
-              </Badge>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge tone="accent" className="px-3 py-1 text-[13px]">
+                  {formatRate(shown.levers.weeklyRateKg, units)}
+                </Badge>
+                <MacroEditor plan={preview} intake={intake} units={units} onApply={saveMacros} />
+              </div>
             </div>
             <div className="mt-6 grid grid-cols-3 gap-3">
               {[
@@ -164,11 +183,11 @@ function PlanView() {
               description="Change what matters to you. We'll balance the rest."
               action={
                 dirty ? (
-                  <button onClick={() => setDraft(plan.levers)} className="flex items-center gap-1 text-[13px] text-muted hover:text-ink">
+                    <button onClick={() => { setMacroOverride(null); setDraft(plan.levers); }} className="flex items-center gap-1 text-[13px] text-muted hover:text-ink">
                     <RotateCcw className="size-3.5" /> Reset
                   </button>
                 ) : (
-                  <button onClick={() => setDraft(defaultLevers(intake))} className="text-[13px] text-muted hover:text-ink">
+                  <button onClick={() => { setMacroOverride(null); setDraft(defaultLevers(intake)); }} className="text-[13px] text-muted hover:text-ink">
                     Recommended
                   </button>
                 )
@@ -187,7 +206,10 @@ function PlanView() {
                     max={calMax}
                     step={50}
                     value={Math.min(calMax, Math.max(calMin, preview.calorieTarget))}
-                    onChange={(c) => setDraft((d) => ({ ...d, weeklyRateKg: Math.round(rateForCalories(intake, d, c) * 1000) / 1000 }))}
+                    onChange={(c) => {
+                      setMacroOverride(null);
+                      setDraft((d) => ({ ...d, weeklyRateKg: Math.round(rateForCalories(intake, d, c) * 1000) / 1000 }));
+                    }}
                   />
                 }
               />
@@ -203,24 +225,27 @@ function PlanView() {
                     max={Math.round(displayWeight(bounds.maxGain, units, 2) * 100)}
                     step={5}
                     value={Math.round(displayWeight(draft.weeklyRateKg, units, 2) * 100)}
-                    onChange={(v) => setDraft((d) => ({ ...d, weeklyRateKg: units.weight === "lb" ? (v / 100) * 0.45359237 : v / 100 }))}
+                    onChange={(v) => {
+                      setMacroOverride(null);
+                      setDraft((d) => ({ ...d, weeklyRateKg: units.weight === "lb" ? (v / 100) * 0.45359237 : v / 100 }));
+                    }}
                   />
                 }
               />
               <Lever
                 label="Daily steps"
                 value={draft.stepTarget.toLocaleString()}
-                slider={<Slider ariaLabel="Daily steps" min={3000} max={20000} step={500} value={draft.stepTarget} onChange={(v) => setDraft((d) => ({ ...d, stepTarget: v }))} />}
+                slider={<Slider ariaLabel="Daily steps" min={3000} max={20000} step={500} value={draft.stepTarget} onChange={(v) => { setMacroOverride(null); setDraft((d) => ({ ...d, stepTarget: v })); }} />}
               />
               <Lever
                 label="Cardio per week"
                 value={`${draft.cardioMinutesPerWeek} min`}
-                slider={<Slider ariaLabel="Cardio minutes" min={0} max={420} step={10} value={draft.cardioMinutesPerWeek} onChange={(v) => setDraft((d) => ({ ...d, cardioMinutesPerWeek: v }))} />}
+                slider={<Slider ariaLabel="Cardio minutes" min={0} max={420} step={10} value={draft.cardioMinutesPerWeek} onChange={(v) => { setMacroOverride(null); setDraft((d) => ({ ...d, cardioMinutesPerWeek: v })); }} />}
               />
               <Lever
                 label="Training days"
                 value={`${draft.liftingDays} / week`}
-                slider={<Slider ariaLabel="Training days" min={0} max={7} step={1} value={draft.liftingDays} onChange={(v) => setDraft((d) => ({ ...d, liftingDays: v }))} />}
+                slider={<Slider ariaLabel="Training days" min={0} max={7} step={1} value={draft.liftingDays} onChange={(v) => { setMacroOverride(null); setDraft((d) => ({ ...d, liftingDays: v })); }} />}
               />
             </div>
 

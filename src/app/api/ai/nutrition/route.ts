@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { AI_MODEL, SAFETY_PRINCIPLES, clientKey, getOpenAI, rateLimited } from "@/lib/ai/server";
+import { SAFETY_PRINCIPLES, clientKey, getOpenAI, modelOptions, prepareAiAttachments, rateLimited } from "@/lib/ai/server";
 import { getRequestUser } from "@/lib/supabase/server";
 import { estimateFromConversation, type EstimateResult } from "@/lib/foods";
 
@@ -15,6 +15,10 @@ const Body = z.object({
       dietaryPreferences: z.array(z.string()).optional(),
       localTime: z.string().optional(),
     })
+    .optional(),
+  attachments: z
+    .array(z.object({ type: z.enum(["image", "audio"]), dataUrl: z.string().max(20_000_000), name: z.string().max(120) }))
+    .max(3)
     .optional(),
 });
 
@@ -31,6 +35,7 @@ Rules:
 - Split the meal into separate items (e.g. rice, chicken, olive oil). Put the amount and cooked/raw state in "quantity", e.g. "150 g cooked".
 - "meal" is breakfast, lunch, dinner, or snack if the user said so; otherwise null.
 - If the message isn't about food the user ate, use status "not_food" and briefly say you can help log meals.
+- If the user shares a photo, identify the foods and estimate portions from visual cues (plate size, utensils, hands). Treat what they say as more reliable than the photo. Ask about hidden calories (oil, butter, dressing) the photo can't show.
 - Keep "reply" to 1–2 short sentences. When ready, briefly mention any assumptions. No lectures, no judgment.`;
 
 const SCHEMA = {
@@ -83,19 +88,36 @@ export async function POST(req: Request) {
 
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
-  const { messages, context } = parsed.data;
+  const { messages, context, attachments } = parsed.data;
 
   const openai = getOpenAI();
-  if (!openai) return NextResponse.json({ ...estimateFromConversation(messages), engine: "offline" });
+  if (!openai) {
+    const fallback = estimateFromConversation(messages);
+    return NextResponse.json({
+      ...fallback,
+      reply: attachments?.length ? `${fallback.reply} Image and voice review becomes available when an OpenAI key is configured.` : fallback.reply,
+      engine: "offline",
+    });
+  }
 
   try {
+    const prepared = await prepareAiAttachments(openai, attachments, "low");
     const ctx = context
       ? `Context: ${context.remainingCalories != null ? `${Math.round(context.remainingCalories)} kcal remaining today. ` : ""}${context.dietaryPreferences?.length ? `Preferences: ${context.dietaryPreferences.join(", ")}. ` : ""}${context.localTime ? `Local time ${context.localTime}.` : ""}`
       : "";
+    const userMessages = messages.map((message, index) => {
+      if (index !== messages.length - 1 || (!prepared.images.length && !prepared.transcripts.length)) return message;
+      return {
+        role: message.role,
+        content: [
+          { type: "text", text: `${message.content}${prepared.transcripts.length ? `\nVoice note transcript: ${prepared.transcripts.join(" ")}` : ""}` },
+          ...prepared.images,
+        ],
+      };
+    });
     const completion = await openai.chat.completions.create({
-      model: AI_MODEL,
-      temperature: 0.2,
-      messages: [{ role: "system", content: `${SYSTEM}\n${ctx}` }, ...messages],
+      ...modelOptions({ maxTokens: 3000, temperature: 0.2 }),
+      messages: [{ role: "system", content: `${SYSTEM}\n${ctx}` }, ...userMessages] as never,
       response_format: { type: "json_schema", json_schema: { name: "meal_estimate", strict: true, schema: SCHEMA as unknown as Record<string, unknown> } },
     });
     const raw = completion.choices[0]?.message?.content ?? "{}";
@@ -110,6 +132,9 @@ export async function POST(req: Request) {
     return NextResponse.json(out);
   } catch (e) {
     console.error("nutrition ai error", e);
-    return NextResponse.json({ ...estimateFromConversation(messages), engine: "offline" });
+    return NextResponse.json(
+      { error: "The AI service could not complete this estimate. Please try again." },
+      { status: 502 }
+    );
   }
 }

@@ -1,6 +1,6 @@
 import type { EnergyBreakdown, Goal, Intake, Plan, PlanLevers, Settings } from "./types";
 import { clamp, round } from "./utils";
-import { displayWeight } from "./units";
+import { displayWeight, formatRate } from "./units";
 
 /** ~7,700 kcal per kg of body-weight change is the standard planning approximation. */
 export const KCAL_PER_KG = 7700;
@@ -210,6 +210,7 @@ export function buildPlan(intake: Intake, leversIn: PlanLevers, opts: BuildOptio
     proteinG,
     carbsG,
     fatG,
+    macrosCustomized: false,
     sleepTargetHours,
     breakdown,
     recovery,
@@ -227,6 +228,39 @@ export function generatePlan(intake: Intake, units?: Settings["units"]) {
 export function rateForCalories(intake: Intake, levers: PlanLevers, calories: number) {
   const maintenance = maintenanceFrom(energyBreakdown(intake, levers));
   return ((calories - maintenance) * 7) / KCAL_PER_KG;
+}
+
+export interface MacroTargets {
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+}
+
+export function caloriesForMacros(macros: MacroTargets) {
+  return macros.proteinG * 4 + macros.carbsG * 4 + macros.fatG * 9;
+}
+
+/** Applies user-selected macros and recalculates the implied calorie target and pace. */
+export function applyMacroTargets(intake: Intake, plan: Plan, macros: MacroTargets, units?: Settings["units"]): Plan {
+  const calorieTarget = round(caloriesForMacros(macros), 10);
+  const bounds = rateBounds(intake);
+  const weeklyRateKg = clamp(rateForCalories(intake, plan.levers, calorieTarget), bounds.maxLoss, bounds.maxGain);
+  const next: Plan = {
+    ...plan,
+    levers: { ...plan.levers, weeklyRateKg: round(weeklyRateKg, 0.01) },
+    calorieTarget,
+    proteinG: round(macros.proteinG, 1),
+    carbsG: round(macros.carbsG, 1),
+    fatG: round(macros.fatG, 1),
+    macrosCustomized: true,
+    generatedAt: new Date().toISOString(),
+  };
+  const rateText = formatRate(next.levers.weeklyRateKg, units ?? { weight: "lb", height: "imperial" });
+  next.explanation = [
+    ...plan.explanation.filter((line) => !line.startsWith("Macros are manually set")),
+    `Macros are manually set to ${next.proteinG} g protein, ${next.carbsG} g carbs, and ${next.fatG} g fat (${calorieTarget.toLocaleString()} kcal). That implies a pace of ${rateText} at your current activity and maintenance estimate.`,
+  ];
+  return next;
 }
 
 /**

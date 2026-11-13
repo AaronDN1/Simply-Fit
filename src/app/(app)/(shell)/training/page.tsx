@@ -8,6 +8,7 @@ import { Sparkline } from "@/components/ui/data";
 import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { WorkoutLogger } from "@/components/app/workout-logger";
+import { WorkoutCheckoff } from "@/components/app/workout-checkoff";
 import { SplitEditor } from "@/components/app/split-editor";
 import { useStore } from "@/lib/store";
 import { dayForDate, exerciseHistory, trainedExercises } from "@/lib/workouts";
@@ -56,7 +57,12 @@ export default function TrainingPage() {
         <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
           <div>
             {day && !day.isRest ? (
-              <WorkoutLogger key={day.id + (log?.id ?? "")} day={day} log={log} />
+              <div className="space-y-3">
+                <div className="flex justify-end">
+                  <WorkoutCheckoff day={day} log={log} />
+                </div>
+                <WorkoutLogger key={day.id + (log?.id ?? "")} day={day} log={log} />
+              </div>
             ) : (
               <Card>
                 <Empty
@@ -95,20 +101,25 @@ function WeekStrip() {
   const split = data.profile.split;
   const today = weekdayIndex(todayISO());
   if (!split) return null;
+  const entries = split.rotation
+    ? Array.from({ length: 7 }, (_, offset) => {
+        const iso = addDays(todayISO(), offset);
+        return { d: dayForDate(split, iso), iso, label: offset === 0 ? "Today" : WEEKDAYS[weekdayIndex(iso)].slice(0, 3), current: offset === 0 };
+      })
+    : split.days.map((d, i) => ({ d, iso: addDays(todayISO(), i - today), label: WEEKDAYS[i].slice(0, 3), current: i === today }));
   return (
     <Card className="self-start p-5">
       <p className="mb-3 text-[15px] font-semibold tracking-tight">This week</p>
       <ul className="space-y-1">
-        {split.days.map((d, i) => {
-          const iso = addDays(todayISO(), i - today);
+        {entries.map(({ d, iso, label, current }) => {
           const done = data.workouts.some((w) => w.date === iso && w.completedAt);
           return (
-            <li key={d.id} className={cn("flex items-center gap-3 rounded-xl px-3 py-2", i === today && "bg-canvas")}>
-              <span className={cn("w-9 text-[12px] font-medium uppercase", i === today ? "text-accent" : "text-muted")}>{WEEKDAYS[i].slice(0, 3)}</span>
-              <span className={cn("flex-1 truncate text-[14px]", d.isRest && "text-muted")}>{d.isRest ? "Rest" : d.name}</span>
+            <li key={`${iso}-${d?.id ?? "rest"}`} className={cn("flex items-center gap-3 rounded-xl px-3 py-2", current && "bg-canvas")}>
+              <span className={cn("w-9 text-[12px] font-medium uppercase", current ? "text-accent" : "text-muted")}>{label}</span>
+              <span className={cn("flex-1 truncate text-[14px]", d?.isRest && "text-muted")}>{d?.isRest ? "Rest" : d?.name ?? "Unscheduled"}</span>
               {done ? (
                 <span className="size-2 rounded-full bg-accent" aria-label="Completed" />
-              ) : i < today && !d.isRest ? (
+              ) : !split.rotation && !current && d && !d.isRest ? (
                 <span className="size-2 rounded-full border border-line-strong" aria-label="Not logged" />
               ) : null}
             </li>

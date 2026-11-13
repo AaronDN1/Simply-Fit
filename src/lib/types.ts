@@ -68,6 +68,7 @@ export interface Plan {
   proteinG: number;
   carbsG: number;
   fatG: number;
+  macrosCustomized?: boolean;
   sleepTargetHours: number;
   breakdown: EnergyBreakdown;
   recovery: string[];
@@ -144,6 +145,10 @@ export interface Split {
   name: string;
   source: "recommended" | "custom" | "ai";
   days: WorkoutDay[];
+  rotation?: {
+    startDate: string;
+    days: WorkoutDay[];
+  };
 }
 
 export interface SetLog {

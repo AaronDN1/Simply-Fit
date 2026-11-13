@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { AI_MODEL, SAFETY_PRINCIPLES, clientKey, getOpenAI, rateLimited } from "@/lib/ai/server";
+import { SAFETY_PRINCIPLES, clientKey, getOpenAI, modelOptions, prepareAiAttachments, rateLimited } from "@/lib/ai/server";
 import { getRequestUser } from "@/lib/supabase/server";
 import { EXERCISES, recommendedSplit } from "@/lib/workouts";
 import type { EquipmentAccess, Split, TrainingStyle } from "@/lib/types";
 
 const Body = z.object({
-  request: z.string().min(2).max(800),
+  request: z.string().max(800).default(""),
   profile: z.object({
     goal: z.string(),
     experience: z.string(),
@@ -16,6 +16,10 @@ const Body = z.object({
     sessionMinutes: z.number().min(15).max(180),
   }),
   currentSplit: z.string().max(4000).optional(),
+  attachments: z
+    .array(z.object({ type: z.enum(["image", "audio"]), dataUrl: z.string().max(20_000_000), name: z.string().max(120) }))
+    .max(3)
+    .optional(),
 });
 
 const DaySchema = {
@@ -49,17 +53,19 @@ const DaySchema = {
 const SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["reply", "name", "days"],
+  required: ["reply", "name", "rotation", "days"],
   properties: {
     reply: { type: "string" },
     name: { type: "string" },
-    days: { type: "array", items: DaySchema, minItems: 7, maxItems: 7 },
+    rotation: { type: "boolean" },
+    days: { type: "array", items: DaySchema, minItems: 1, maxItems: 7 },
   },
 };
 
 const AiSplit = z.object({
   reply: z.string(),
   name: z.string(),
+  rotation: z.boolean(),
   days: z
     .array(
       z.object({
@@ -79,7 +85,8 @@ const AiSplit = z.object({
         ),
       })
     )
-    .length(7),
+    .min(1)
+    .max(7),
 });
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
@@ -87,6 +94,20 @@ const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(
 function matchExercise(name: string) {
   const n = name.toLowerCase();
   return EXERCISES.find((e) => e.name.toLowerCase() === n) ?? EXERCISES.find((e) => n.includes(e.name.toLowerCase()) || e.name.toLowerCase().includes(n));
+}
+
+function friendlyDayName(day: { name: string; focus: string; exercises: { name: string }[] }, index: number) {
+  if (!/^(monday|tuesday|wednesday|thursday|friday|saturday|sunday|day\s*\d+)$/i.test(day.name.trim())) return day.name;
+  const text = `${day.focus} ${day.exercises.map((e) => e.name).join(" ")}`.toLowerCase();
+  const has = (...words: string[]) => words.some((word) => text.includes(word));
+  if (has("biceps", "curl") && has("triceps", "pushdown", "extension")) return "Arms";
+  if (has("chest", "bench", "press", "push-up") && has("triceps")) return "Push";
+  if (has("back", "row", "pulldown", "pull-up") && has("biceps")) return "Pull";
+  if (has("quad", "squat", "leg press") && has("hamstring", "deadlift", "leg curl")) return "Legs";
+  if (has("chest", "bench", "press")) return "Chest";
+  if (has("back", "row", "pulldown", "pull-up")) return "Back";
+  if (has("shoulder", "delt", "overhead")) return "Shoulders";
+  return `Workout ${index + 1}`;
 }
 
 /** Rule-based fallback: reads day count, equipment, and style hints from the request. */
@@ -104,9 +125,15 @@ function offlineSplit(request: string, p: z.infer<typeof Body>["profile"]): { re
   else if (/muscle|hypertrophy|size|bodybuild/.test(t)) style = "hypertrophy";
   else if (/athletic|sport|power/.test(t)) style = "athletic";
   const split = recommendedSplit({ equipment, trainingStyle: style }, Math.min(6, Math.max(1, days)));
+  const isRotation = /repeat|rotation|rest days? as needed|no schedul|indefinitely/.test(t);
+  const rotationDays = split.days.filter((d) => !d.isRest);
   return {
-    reply: `Here's a ${split.name.toLowerCase()} plan with ${Math.min(6, Math.max(1, days))} training days built for your equipment. Review it and save if it looks right.`,
-    split: { ...split, source: "ai" },
+    reply: `Here's a ${split.name.toLowerCase()} plan with ${rotationDays.length} training days built for your equipment. Review it and save if it looks right.`,
+    split: {
+      ...split,
+      source: "ai",
+      ...(isRotation ? { days: rotationDays, rotation: { startDate: new Date().toISOString().slice(0, 10), days: rotationDays } } : {}),
+    },
   };
 }
 
@@ -117,33 +144,46 @@ export async function POST(req: Request) {
 
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
-  const { request, profile, currentSplit } = parsed.data;
+  const { request, profile, currentSplit, attachments } = parsed.data;
 
   const openai = getOpenAI();
-  if (!openai) return NextResponse.json({ ...offlineSplit(request, profile), engine: "offline" });
+  if (!openai) {
+    const fallback = offlineSplit(request, profile);
+    return NextResponse.json({
+      ...fallback,
+      reply: attachments?.length ? `${fallback.reply} Image and voice review becomes available when an OpenAI key is configured.` : fallback.reply,
+      engine: "offline",
+    });
+  }
 
   try {
+    const prepared = await prepareAiAttachments(openai, attachments, "high");
     const library = EXERCISES.map((e) => e.name).join(", ");
+    const requestContent = [
+      { type: "text", text: `Profile: goal ${profile.goal}, experience ${profile.experience}, equipment ${profile.equipment}, style ${profile.trainingStyle}, currently ${profile.liftingDays} days/week, ~${profile.sessionMinutes} min sessions.
+${currentSplit ? `Current split:\n${currentSplit}\n` : ""}Request: ${request}${prepared.transcripts.length ? `\nVoice note transcript: ${prepared.transcripts.join(" ")}` : ""}` },
+      ...prepared.images,
+    ];
     const completion = await openai.chat.completions.create({
-      model: AI_MODEL,
-      temperature: 0.3,
+      ...modelOptions({ maxTokens: 8000, temperature: 0.3 }),
       response_format: { type: "json_schema", json_schema: { name: "weekly_split", strict: true, schema: SCHEMA } },
       messages: [
         {
           role: "system",
           content: `${SAFETY_PRINCIPLES}
 
-You design or revise a weekly resistance-training split. Return exactly 7 days, Monday first. Rest days have isRest true and no exercises.
+You design or revise a resistance-training split. Return 1–7 workout days. Use exactly 7 entries only when the user wants a Monday-to-Sunday calendar with scheduled rest days. If the user describes a repeating rotation or says they take rest days as needed, return only the repeating training days and set "rotation" to true. Do not use weekday names as workout names; use simple focus names such as Chest, Back, Arms, Legs, Push, Pull, or Shoulders.
+Treat the request as an ongoing coaching conversation. Make the requested split-level changes while preserving anything the user did not ask to change. If a detail would materially change the plan, ask one concise follow-up question in "reply" while still providing a sensible best-effort draft. Invite the user to dig deeper into a specific day or have you detail the exercises and progression for logging.
 Keep sessions within the user's time budget (assume ~2 minutes per set including rest). Prefer exercises from this library when they fit: ${library}.
+If the user shares a photo or screenshot of a program, read it carefully and keep its exercises, sets, reps, and day order unless they ask for changes; fill in missing details sensibly.
 Only use equipment the user has. Use sensible volumes (10–20 hard sets per muscle per week for most people), RPE 6–9, and at least one full rest day unless the user insists.
 "reply" is 1–2 sentences explaining the main choices in plain language.`,
         },
         {
           role: "user",
-          content: `Profile: goal ${profile.goal}, experience ${profile.experience}, equipment ${profile.equipment}, style ${profile.trainingStyle}, currently ${profile.liftingDays} days/week, ~${profile.sessionMinutes} min sessions.
-${currentSplit ? `Current split:\n${currentSplit}\n` : ""}Request: ${request}`,
+          content: requestContent,
         },
-      ],
+      ] as never,
     });
     const result = AiSplit.parse(JSON.parse(completion.choices[0]?.message?.content ?? "{}"));
     const split: Split = {
@@ -152,7 +192,7 @@ ${currentSplit ? `Current split:\n${currentSplit}\n` : ""}Request: ${request}`,
       source: "ai",
       days: result.days.map((d) => ({
         id: crypto.randomUUID(),
-        name: d.isRest ? "Rest" : d.name,
+        name: d.isRest ? "Rest" : friendlyDayName(d, result.days.indexOf(d)),
         focus: d.focus,
         isRest: d.isRest,
         exercises: d.isRest
@@ -174,9 +214,13 @@ ${currentSplit ? `Current split:\n${currentSplit}\n` : ""}Request: ${request}`,
             }),
       })),
     };
+    if (result.rotation) split.rotation = { startDate: new Date().toISOString().slice(0, 10), days: split.days };
     return NextResponse.json({ reply: result.reply, split, engine: "openai" });
   } catch (e) {
     console.error("coach ai error", e);
-    return NextResponse.json({ ...offlineSplit(request, profile), engine: "offline" });
+    return NextResponse.json(
+      { error: "The AI service could not complete this plan. Please try again." },
+      { status: 502 }
+    );
   }
 }

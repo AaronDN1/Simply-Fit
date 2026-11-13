@@ -183,8 +183,31 @@ export function recommendedSplit(intake: Pick<Intake, "equipment" | "trainingSty
   };
 }
 
+export const BASIC_TEMPLATES = [
+  { id: "full_body", label: "Full body", description: "3 days · balanced" },
+  { id: "upper_lower", label: "Upper / lower", description: "4 days · simple" },
+  { id: "push_pull_legs", label: "Push / pull / legs", description: "6 days · frequent" },
+] as const;
+
+export function templateSplit(intake: Pick<Intake, "equipment" | "trainingStyle">, template: (typeof BASIC_TEMPLATES)[number]["id"]): Split {
+  const layout = template === "full_body" ? LAYOUTS[3] : template === "upper_lower" ? LAYOUTS[4] : LAYOUTS[6];
+  const name = template === "full_body" ? "Full body" : template === "upper_lower" ? "Upper / lower" : "Push / pull / legs";
+  return {
+    id: uid(),
+    name,
+    source: "custom",
+    days: layout.map((k) => (k ? buildDay(k, intake.equipment, intake.trainingStyle) : restDay())),
+  };
+}
+
 export function dayForDate(split: Split | null, date: string) {
   if (!split) return null;
+  if (split.rotation?.days.length) {
+    const start = new Date(`${split.rotation.startDate}T00:00:00Z`).getTime();
+    const current = new Date(`${date}T00:00:00Z`).getTime();
+    const days = Math.floor((current - start) / 86_400_000);
+    return split.rotation.days[((days % split.rotation.days.length) + split.rotation.days.length) % split.rotation.days.length] ?? null;
+  }
   return split.days[weekdayIndex(date)] ?? null;
 }
 

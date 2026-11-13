@@ -7,8 +7,10 @@ import { Card, PageHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AnimatedNumber, Bar, Ring } from "@/components/ui/data";
 import { NutritionChat, MEAL_LABEL } from "@/components/app/nutrition-chat";
+import { MacroEditor } from "@/components/app/macro-editor";
 import { FoodSheet } from "@/components/app/food-sheet";
 import { useStore } from "@/lib/store";
+import { useToast } from "@/components/ui/toast";
 import { totalsFor } from "@/lib/stats";
 import type { FoodEntry, Meal } from "@/lib/types";
 import { addDays, relativeDayLabel, todayISO } from "@/lib/utils";
@@ -16,7 +18,8 @@ import { addDays, relativeDayLabel, todayISO } from "@/lib/utils";
 const MEALS: Meal[] = ["breakfast", "lunch", "dinner", "snack"];
 
 export default function NutritionPage() {
-  const { data } = useStore();
+  const { data, updateProfile } = useStore();
+  const toast = useToast();
   const plan = data.profile.plan!;
   const [date, setDate] = useState(todayISO);
   const [sheet, setSheet] = useState<{ open: boolean; entry: FoodEntry | null; meal?: Meal }>({ open: false, entry: null });
@@ -25,19 +28,27 @@ export default function NutritionPage() {
   const entries = data.foods.filter((f) => f.date === date).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   const isToday = date === todayISO();
 
+  async function saveMacros(next: typeof plan) {
+    await updateProfile({ plan: next });
+    toast("Macro targets saved");
+  }
+
   return (
     <div>
       <PageHeader
         title="Nutrition"
         action={
-          <div className="flex items-center gap-1 rounded-full border border-line bg-surface p-1">
-            <button onClick={() => setDate(addDays(date, -1))} className="grid size-8 place-items-center rounded-full hover:bg-sunken" aria-label="Previous day">
-              <ChevronLeft className="size-4" />
-            </button>
-            <span className="min-w-[96px] text-center text-sm font-medium">{relativeDayLabel(date)}</span>
-            <button onClick={() => setDate(addDays(date, 1))} disabled={isToday} className="grid size-8 place-items-center rounded-full hover:bg-sunken disabled:opacity-30" aria-label="Next day">
-              <ChevronRight className="size-4" />
-            </button>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <MacroEditor plan={plan} intake={data.profile.intake!} units={data.profile.settings.units} onApply={saveMacros} />
+            <div className="flex items-center gap-1 rounded-full border border-line bg-surface p-1">
+              <button onClick={() => setDate(addDays(date, -1))} className="grid size-8 place-items-center rounded-full hover:bg-sunken" aria-label="Previous day">
+                <ChevronLeft className="size-4" />
+              </button>
+              <span className="min-w-[96px] text-center text-sm font-medium">{relativeDayLabel(date)}</span>
+              <button onClick={() => setDate(addDays(date, 1))} disabled={isToday} className="grid size-8 place-items-center rounded-full hover:bg-sunken disabled:opacity-30" aria-label="Next day">
+                <ChevronRight className="size-4" />
+              </button>
+            </div>
           </div>
         }
       />
