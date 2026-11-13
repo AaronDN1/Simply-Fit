@@ -5987,3 +5987,569 @@ https://react.dev/link/hydration-mismatch
 [browser] You have Reduced Motion enabled on your device. Animations may not appear as expected.. For more information and steps for solving, visit https://motion.dev/troubleshooting/reduced-motion-disabled
  GET / 200 in 86ms (next.js: 7ms, proxy.ts: 5ms, application-code: 74ms)
 [browser] You have Reduced Motion enabled on your device. Animations may not appear as expected.. For more information and steps for solving, visit https://motion.dev/troubleshooting/reduced-motion-disabled
+✓ Compiled in 356ms
+✓ Compiled in 317ms
+ GET / 200 in 247ms (next.js: 169ms, proxy.ts: 7ms, application-code: 71ms)
+ GET / 200 in 150ms (next.js: 27ms, proxy.ts: 12ms, application-code: 112ms)
+ GET / 200 in 142ms (next.js: 47ms, proxy.ts: 9ms, application-code: 86ms)
+ GET / 200 in 66ms (next.js: 21ms, proxy.ts: 11ms, application-code: 35ms)
+✓ Compiled in 69ms
+ GET / 200 in 208ms (next.js: 30ms, proxy.ts: 7ms, application-code: 172ms)
+[browser] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+      <LoadingBoundary name="/" loading={null}>
+        <HTTPAccessFallbackBoundary notFound={{...}} forbidden={undefined} unauthorized={undefined}>
+          <HTTPAccessFallbackErrorBoundary pathname="/" notFound={{...}} forbidden={undefined} unauthorized={undefined} ...>
+            <RedirectBoundary>
+              <RedirectErrorBoundary router={{...}}>
+                <InnerLayoutRouter url="/" tree={[...]} params={{}} renderTree={{...}} segmentPath={[...]} ...>
+                  <SegmentViewNode type="page" pagePath="page.tsx">
+                    <SegmentTrieNode>
+                    <LandingPage>
+                      <div className="grain rela...">
+                        <header className="fixed inse...">
+                          <nav className="mx-auto fl...">
+                            <Logo>
+                              <LinkComponent>
+                                <LinkComponent href="/" className="inline-fle..." aria-label="Simply Fit...">
+                                  <a
+                                    className="inline-flex items-center gap-2"
+                                    aria-label="Simply Fit home"
+                                    ref={function}
+                                    onClick={function onClick}
+                                    onMouseEnter={function onMouseEnter}
+                                    onTouchStart={function onTouchStart}
+                                    href="/"
+-                                   data-cursor-ref="e0"
+                                  >
+                            <div className="hidden ite...">
+                              <LinkComponent>
+                                <LinkComponent href="#how-it-works" className="hover:text...">
+                                  <a
+                                    className="hover:text-ink"
+                                    ref={function}
+                                    onClick={function onClick}
+                                    onMouseEnter={function onMouseEnter}
+                                    onTouchStart={function onTouchStart}
+                                    href="#how-it-works"
+-                                   data-cursor-ref="e1"
+                                  >
++                                   How it works
+                              <LinkComponent>
+                                <LinkComponent href="#features" className="hover:text...">
+                                  <a
+                                    className="hover:text-ink"
+                                    ref={function}
+                                    onClick={function onClick}
+                                    onMouseEnter={function onMouseEnter}
+                                    onTouchStart={function onTouchStart}
+                                    href="#features"
+-                                   data-cursor-ref="e2"
+                                  >
++                                   Features
+                            <div className="flex items...">
+                              <LandingAuthAction>
+                                <ButtonLink href="/login" variant="ghost" size="sm">
+                                  <LinkComponent href="/login" className="inline-fle...">
+                                    <a
+                                      className="inline-flex items-center justify-center gap-2 rounded-full font-mediu..."
+                                      ref={function}
+                                      onClick={function onClick}
+                                      onMouseEnter={function onMouseEnter}
+                                      onTouchStart={function onTouchStart}
+                                      href="/login"
+-                                     data-cursor-ref="e3"
+                                    >
++                                     Sign in
+                              <ButtonLink>
+                                <LinkComponent>
+                                  <LinkComponent href="/signup" className="inline-fle...">
+                                    <a
+                                      className="inline-flex items-center justify-center gap-2 rounded-full font-mediu..."
+                                      ref={function}
+                                      onClick={function onClick}
+                                      onMouseEnter={function onMouseEnter}
+                                      onTouchStart={function onTouchStart}
+                                      href="/signup"
+-                                     data-cursor-ref="e4"
+                                    >
++                                     Build My Plan
+                        <main>
+                          ...
+                            <div className="mx-auto gr...">
+                              <div className="text-cente...">
+                                <motion.h1 initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} ...>
+                                  <h1
+                                    className="font-display text-[56px] leading-[0.95] tracking-[-0.02em] text-ink sm:..."
+                                    style={{opacity:0,transform:"translateY..."}}
+                                    ref={function useMotionRef.useCallback}
+-                                   data-cursor-ref="e15"
+                                  >
+                                <motion.p initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} ...>
+                                  <p
+                                    className="mx-auto mt-5 max-w-md text-[17px] leading-relaxed text-ink-soft sm:text..."
+                                    style={{opacity:0,transform:"translateY..."}}
+                                    ref={function useMotionRef.useCallback}
+-                                   data-cursor-ref="e16"
+                                  >
++                                   Simply Fit brings your nutrition, workouts, activity, recovery, and goals into one ...
+                                ...
+                                  <div className="mt-7 flex ..." style={{opacity:0, ...}} ...>
+                                    <ButtonLink href="/signup" size="lg">
+                                      <LinkComponent href="/signup" className="inline-fle...">
+                                        <a
+                                          className="inline-flex items-center justify-center gap-2 rounded-full font-m..."
+                                          ref={function}
+                                          onClick={function onClick}
+                                          onMouseEnter={function onMouseEnter}
+                                          onTouchStart={function onTouchStart}
+                                          href="/signup"
+-                                         data-cursor-ref="e5"
+                                        >
+                                    <ButtonLink href="#how-it-works" variant="secondary" size="lg">
+                                      <LinkComponent href="#how-it-works" className="inline-fle...">
+                                        <a
+                                          className="inline-flex items-center justify-center gap-2 rounded-full font-m..."
+                                          ref={function}
+                                          onClick={function onClick}
+                                          onMouseEnter={function onMouseEnter}
+                                          onTouchStart={function onTouchStart}
+                                          href="#how-it-works"
+-                                         data-cursor-ref="e6"
+                                        >
++                                         See How It Works
+                                <div className="relative m...">
+                                  <Caption i={0} progress={{...}}>
+                                    <motion.p style={{opacity:{...}, ...}} className="absolute i...">
+                                      <p
+                                        className="absolute inset-x-0 top-0 text-center text-[15px] text-muted lg:text..."
+                                        style={{opacity:1,transform:"translateY..."}}
+                                        ref={function useMotionRef.useCallback}
+-                                       data-cursor-ref="e17"
+                                      >
++                                       Your food, training, steps, and sleep live in five different places.
+                                  <Caption i={1} progress={{...}}>
+                                    <motion.p style={{opacity:{...}, ...}} className="absolute i...">
+                                      <p
+                                        className="absolute inset-x-0 top-0 text-center text-[15px] text-muted lg:text..."
+                                        style={{opacity:0,transform:"translateY..."}}
+                                        ref={function useMotionRef.useCallback}
+-                                       data-cursor-ref="e18"
+                                      >
++                                       Simply Fit puts them into one day.
+                                  <Caption i={2} progress={{...}}>
+                                    <motion.p style={{opacity:{...}, ...}} className="absolute i...">
+                                      <p
+                                        className="absolute inset-x-0 top-0 text-center text-[15px] text-muted lg:text..."
+                                        style={{opacity:0,transform:"translateY..."}}
+                                        ref={function useMotionRef.useCallback}
+-                                       data-cursor-ref="e19"
+                                      >
++                                       And tells you the one thing to do next.
+                              ...
+                                <div className="absolute i..." style={{opacity:0}} ...>
+                                  <div>
+                                    <p
+                                      className="text-[12px] font-medium uppercase tracking-[0.14em] text-muted"
+-                                     data-cursor-ref="e20"
+                                    >
++                                     Today
+                                    <p
+                                      className="mt-1 font-display text-[30px] leading-none"
+-                                     data-cursor-ref="e21"
+                                    >
++                                     Wednesday
+                                    <p
+                                      className="mt-2 text-[13px] text-muted"
+-                                     data-cursor-ref="e22"
+                                    >
++                                     1,280 of 2,360 kcal · 96 g protein
+                                  ...
+                          ...
+                            <div className="mx-auto ma...">
+                              ...
+                                <motion.div initial={{opacity:0,y:24}} whileInView={{opacity:1,y:0}} ...>
+                                  <div className="max-w-xl" style={{opacity:0, ...}} ...>
+                                    <p
+                                      className="mb-3 text-[13px] font-medium uppercase tracking-[0.14em] text-accent"
+-                                     data-cursor-ref="e23"
+                                    >
++                                     How it works
+                                    <h2
+                                      className="font-display text-[40px] leading-[1.02] tracking-tight sm:text-[52px]"
+-                                     data-cursor-ref="e24"
+                                    >
+                                    <p
+                                      className="mt-4 text-[17px] leading-relaxed text-ink-soft"
+-                                     data-cursor-ref="e25"
+                                    >
++                                     {"Simply Fit does the planning math so you don't have to — and explains it, so..."}
+                              <div className="mt-14 grid...">
+                                <Reveal delay={0} className="bg-surface...">
+                                  <motion.div initial={{opacity:0,y:24}} whileInView={{opacity:1,y:0}} ...>
+                                    <div className="bg-surface..." style={{opacity:0, ...}} ...>
+                                      <span>
+                                      <h3
+                                        className="mt-6 text-lg font-semibold tracking-tight"
+-                                       data-cursor-ref="e26"
+                                      >
++                                       Tell us about your real life
+                                      <p
+                                        className="mt-2 text-[15px] leading-relaxed text-muted"
+-                                       data-cursor-ref="e27"
+                                      >
++                                       {"Your schedule, training, steps, sleep, food preferences, and what you're w..."}
+                                <Reveal delay={0.08} className="bg-surface...">
+                                  <motion.div initial={{opacity:0,y:24}} whileInView={{opacity:1,y:0}} ...>
+                                    <div className="bg-surface..." style={{opacity:0, ...}} ...>
+                                      <span>
+                                      <h3
+                                        className="mt-6 text-lg font-semibold tracking-tight"
+-                                       data-cursor-ref="e28"
+                                      >
++                                       Get one clear plan
+                                      <p
+                                        className="mt-2 text-[15px] leading-relaxed text-muted"
+-                                       data-cursor-ref="e29"
+                                      >
++                                       Calories, macros, training days, cardio, steps, and sleep — calculated for you,...
+                                <Reveal delay={0.16} className="bg-surface...">
+                                  <motion.div initial={{opacity:0,y:24}} whileInView={{opacity:1,y:0}} ...>
+                                    <div className="bg-surface..." style={{opacity:0, ...}} ...>
+                                      <span>
+                                      <h3
+                                        className="mt-6 text-lg font-semibold tracking-tight"
+-                                       data-cursor-ref="e30"
+                                      >
++                                       Just do today
+                                      <p
+                                        className="mt-2 text-[15px] leading-relaxed text-muted"
+-                                       data-cursor-ref="e31"
+                                      >
++                                       Open the app and see what matters right now. Log a meal in a sentence, tick off...
+                          <div id="features" className="scroll-mt-16">
+                            ...
+                              <div className="mx-auto gr...">
+                                ...
+                                  <motion.div initial={{opacity:0,y:24}} whileInView={{opacity:1,y:0}} ...>
+                                    <div className="max-w-xl" style={{opacity:0, ...}} ...>
+                                      <p
+                                        className="mb-3 text-[13px] font-medium uppercase tracking-[0.14em] text-accent"
+-                                       data-cursor-ref="e32"
+                                      >
++                                       Personalized plans
+                                      <h2
+                                        className="font-display text-[40px] leading-[1.02] tracking-tight sm:text-[52px]"
+-                                       data-cursor-ref="e33"
+                                      >
+                                      <p
+                                        className="mt-4 text-[17px] leading-relaxed text-ink-soft"
+-                                       data-cursor-ref="e34"
+                                      >
++                                       Want more food? Fewer cardio sessions? A gentler pace? Move a slider and Simply...
+                                ...
+                                  <div className={undefined} style={{opacity:0, ...}} ...>
+                                    <div className="rounded-[2...">
+                                      <div className="flex items...">
+                                        <p
+                                          className="text-[13px] font-medium text-muted"
+-                                         data-cursor-ref="e35"
+                                        >
++                                         Daily calories
+                                        <p
+                                          className="text-[13px] text-muted"
+-                                         data-cursor-ref="e36"
+                                        >
++                                         22 · 6′0″ · 170 lb · lifts daily
+                                      <p
+                                        className="mt-1 font-display text-[64px] leading-none tabular"
+-                                       data-cursor-ref="e37"
+                                      >
++                                       2,360
+                                      <div>
+                                      <div className="mt-7 space...">
+                                        <div>
+                                          <div>
+                                          <Slider ariaLabel="More food" value={0} ...>
+                                            <input
+                                              type="range"
+                                              className="sf-range"
+                                              aria-label="More food"
+                                              min={0}
+                                              max={400}
+                                              step={50}
+                                              value={0}
+                                              style={{--fill:"0%"}}
+                                              onChange={function onChange}
+-                                             data-cursor-ref="e7"
+                                            >
+                                        <div>
+                                          <div>
+                                          <Slider ariaLabel="More steps" value={0} ...>
+                                            <input
+                                              type="range"
+                                              className="sf-range"
+                                              aria-label="More steps"
+                                              min={0}
+                                              max={5000}
+                                              step={500}
+                                              value={0}
+                                              style={{--fill:"0%"}}
+                                              onChange={function onChange}
+-                                             data-cursor-ref="e8"
+                                            >
+                                      ...
+                                        <PopChildMeasure isPresent={true} getElement={function getElement} ...>
+                                          <motion.p initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} ...>
+                                            <p
+                                              className="mt-6 rounded-2xl bg-accent-tint px-4 py-3 text-[14px] leading..."
+                                              style={{opacity:0,transform:"translateY..."}}
+                                              ref={function useMotionRef.useCallback}
+-                                             data-cursor-ref="e38"
+                                            >
++                                             Your starting plan. Drag a slider to see the tradeoff.
+                            ...
+                              <div className="mx-auto gr...">
+                                ...
+                                  <motion.div initial={{opacity:0,y:24}} whileInView={{opacity:1,y:0}} ...>
+                                    <div className="max-w-xl" style={{opacity:0, ...}} ...>
+                                      <p
+                                        className="mb-3 text-[13px] font-medium uppercase tracking-[0.14em] text-accent"
+-                                       data-cursor-ref="e39"
+                                      >
++                                       AI nutrition logging
+                                      <h2
+                                        className="font-display text-[40px] leading-[1.02] tracking-tight sm:text-[52px]"
+-                                       data-cursor-ref="e40"
+                                      >
+                                      <p
+                                        className="mt-4 text-[17px] leading-relaxed text-ink-soft"
+-                                       data-cursor-ref="e41"
+                                      >
++                                       Type what you ate. Simply Fit asks only what it needs — cooked or raw, oil or s...
+                                ...
+                                  <div className="rounded-[2..." style={{opacity:0, ...}} ...>
+                                    <div className="flex items...">
+                                      <p
+                                        className="flex items-center gap-1.5 text-[13px] font-medium text-muted"
+-                                       data-cursor-ref="e42"
+                                      >
+                                      <p
+                                        className="text-[13px] text-muted"
+-                                       data-cursor-ref="e43"
+                                      >
++                                       Review before logging
+                                    <div>
+                                    <div>
+                                    <div>
+                                    <div className="mt-3 flex ...">
+                                      <p
+                                        className="text-[13px] text-muted"
+-                                       data-cursor-ref="e44"
+                                      >
+                                      ...
+                            ...
+                              <motion.div initial={{opacity:0,y:24}} whileInView={{opacity:1,y:0}} ...>
+                                <div className="max-w-xl" style={{opacity:0, ...}} ...>
+                                  <p
+                                    className="mb-3 text-[13px] font-medium uppercase tracking-[0.14em] text-accent"
+-                                   data-cursor-ref="e45"
+                                  >
++                                   One dashboard
+                                  <h2
+                                    className="font-display text-[40px] leading-[1.02] tracking-tight sm:text-[52px]"
+-                                   data-cursor-ref="e46"
+                                  >
+                                  <p
+                                    className="mt-4 text-[17px] leading-relaxed text-ink-soft"
+-                                   data-cursor-ref="e47"
+                                  >
++                                   {"Each part of your health affects the others. Seeing them in one calm view make..."}
+                            ...
+                              <div className="mx-auto gr...">
+                                ...
+                                  <motion.div initial={{opacity:0,y:24}} whileInView={{opacity:1,y:0}} ...>
+                                    <div className="max-w-xl" style={{opacity:0, ...}} ...>
+                                      <p
+                                        className="mb-3 text-[13px] font-medium uppercase tracking-[0.14em] text-accent"
+-                                       data-cursor-ref="e48"
+                                      >
++                                       Progress
+                                      <h2
+                                        className="font-display text-[40px] leading-[1.02] tracking-tight sm:text-[52px]"
+-                                       data-cursor-ref="e49"
+                                      >
+                                      <p
+                                        className="mt-4 text-[17px] leading-relaxed text-ink-soft"
+-                                       data-cursor-ref="e50"
+                                      >
++                                       Daily weight bounces around. Simply Fit shows the rolling trend, the habits beh...
+                                ...
+                                  <div className={undefined} style={{opacity:0, ...}} ...>
+                                    <div className="rounded-[2...">
+                                      <div className="flex items...">
+                                        <div>
+                                          <p
+                                            className="text-[13px] text-muted"
+-                                           data-cursor-ref="e51"
+                                          >
++                                           7-day average
+                                          <p
+                                            className="font-display text-[48px] leading-none tabular"
+-                                           data-cursor-ref="e52"
+                                          >
++                                           171.9
+                                        <p
+                                          className="rounded-full bg-accent-soft px-2.5 py-1 text-[13px] font-medium t..."
+-                                         data-cursor-ref="e53"
+                                        >
++                                         ↓ 0.9 lb / week
+                                      <div>
+                                      <div className="mt-6 round...">
+                                        <p
+                                          className="text-[13px] font-medium text-muted"
+-                                         data-cursor-ref="e54"
+                                        >
++                                         Weekly review
+                                        <p
+                                          className="mt-1.5 text-[15px] leading-relaxed"
+-                                         data-cursor-ref="e55"
+                                        >
++                                         4 workouts done and protein hit 5 of 7 days. Your trend is right on pace. One...
+                            ...
+                              <div className="mx-auto gr...">
+                                ...
+                                  <motion.div initial={{opacity:0,y:24}} whileInView={{opacity:1,y:0}} ...>
+                                    <div className="max-w-xl" style={{opacity:0, ...}} ...>
+                                      <p
+                                        className="mb-3 text-[13px] font-medium uppercase tracking-[0.14em] text-accent"
+-                                       data-cursor-ref="e56"
+                                      >
++                                       Mobile health sync
+                                      <h2
+                                        className="font-display text-[40px] leading-[1.02] tracking-tight sm:text-[52px]"
+-                                       data-cursor-ref="e57"
+                                      >
+                                      <p
+                                        className="mt-4 text-[17px] leading-relaxed text-ink-soft"
+-                                       data-cursor-ref="e58"
+                                      >
++                                       Connect Apple Health or Health Connect where available and Simply Fit pulls in ...
+                                ...
+                                  <div className={undefined} style={{opacity:0, ...}} ...>
+                                    <div className="mx-auto w-...">
+                                      <div className="rounded-[2...">
+                                        <p
+                                          className="text-[12px] font-medium uppercase tracking-[0.14em] text-muted"
+-                                         data-cursor-ref="e59"
+                                        >
++                                         Synced this morning
+                                        <div>
+                                        <p
+                                          className="mt-4 flex items-center justify-center gap-1.5 text-[12px] text-muted"
+-                                         data-cursor-ref="e60"
+                                        >
+                          ...
+                            <div className="mx-auto ma..." style={{opacity:0, ...}} ...>
+                              <div className="relative o...">
+                                <MiniBars>
+                                <h2
+                                  className="relative font-display text-[44px] leading-[1] tracking-tight sm:text-[64px]"
+-                                 data-cursor-ref="e61"
+                                >
+                                <p
+                                  className="relative mx-auto mt-5 max-w-md text-[17px] text-[#cfe0d6]"
+-                                 data-cursor-ref="e62"
+                                >
++                                 {"Create a free account, answer what's relevant, and get a clear plan for food, tr..."}
+                                <div className="relative m...">
+                                  <ButtonLink href="/signup" size="lg" className="bg-canvas ...">
+                                    <LinkComponent href="/signup" className="inline-fle...">
+                                      <a
+                                        className="inline-flex items-center justify-center gap-2 rounded-full font-med..."
+                                        ref={function}
+                                        onClick={function onClick}
+                                        onMouseEnter={function onMouseEnter}
+                                        onTouchStart={function onTouchStart}
+                                        href="/signup"
+-                                       data-cursor-ref="e9"
+                                      >
+                                  <ButtonLink href="/login" size="lg" variant="ghost" className="text-canva...">
+                                    <LinkComponent href="/login" className="inline-fle...">
+                                      <a
+                                        className="inline-flex items-center justify-center gap-2 rounded-full font-med..."
+                                        ref={function}
+                                        onClick={function onClick}
+                                        onMouseEnter={function onMouseEnter}
+                                        onTouchStart={function onTouchStart}
+                                        href="/login"
+-                                       data-cursor-ref="e10"
+                                      >
++                                       I have an account
+                        <footer className="border-t b...">
+                          <div className="mx-auto fl...">
+                            <div>
+                              <Logo>
+                                <LinkComponent>
+                                  <LinkComponent href="/" className="inline-fle..." aria-label="Simply Fit...">
+                                    <a
+                                      className="inline-flex items-center gap-2"
+                                      aria-label="Simply Fit home"
+                                      ref={function}
+                                      onClick={function onClick}
+                                      onMouseEnter={function onMouseEnter}
+                                      onTouchStart={function onTouchStart}
+                                      href="/"
+-                                     data-cursor-ref="e11"
+                                    >
+                              <p
+                                className="mt-3 max-w-sm text-[13px] leading-relaxed"
+-                               data-cursor-ref="e63"
+                              >
++                               Simply Fit offers general fitness and nutrition guidance, not medical advice. Talk to a...
+                            <div className="flex gap-6">
+                              <LinkComponent>
+                                <LinkComponent href="/login" className="hover:text...">
+                                  <a
+                                    className="hover:text-ink"
+                                    ref={function}
+                                    onClick={function onClick}
+                                    onMouseEnter={function onMouseEnter}
+                                    onTouchStart={function onTouchStart}
+                                    href="/login"
+-                                   data-cursor-ref="e12"
+                                  >
++                                   Sign in
+                              <LinkComponent>
+                                <LinkComponent href="/signup" className="hover:text...">
+                                  <a
+                                    className="hover:text-ink"
+                                    ref={function}
+                                    onClick={function onClick}
+                                    onMouseEnter={function onMouseEnter}
+                                    onTouchStart={function onTouchStart}
+                                    href="/signup"
+-                                   data-cursor-ref="e13"
+                                  >
++                                   Create account
+                  ...
+                ...
+    ...
+ 
+ GET / 200 in 92ms (next.js: 7ms, proxy.ts: 6ms, application-code: 78ms)
+[browser] You have Reduced Motion enabled on your device. Animations may not appear as expected.. For more information and steps for solving, visit https://motion.dev/troubleshooting/reduced-motion-disabled
+ GET /today 200 in 50ms (next.js: 22ms, proxy.ts: 4ms, application-code: 24ms)
+ GET / 200 in 87ms (next.js: 6ms, proxy.ts: 7ms, application-code: 73ms)
+[browser] You have Reduced Motion enabled on your device. Animations may not appear as expected.. For more information and steps for solving, visit https://motion.dev/troubleshooting/reduced-motion-disabled

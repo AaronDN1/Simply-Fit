@@ -29,6 +29,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(true);
   const [error, setError] = useState<string | null>(params.get("error"));
   const [loading, setLoading] = useState<"email" | "google" | "demo" | null>(null);
   const [sent, setSent] = useState(false);
@@ -44,7 +45,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
         if (needsConfirmation) return setSent(true);
         router.replace("/onboarding");
       } else {
-        await signInWithEmail(email.trim(), password);
+        await signInWithEmail(email.trim(), password, remember);
         router.replace(next);
       }
       router.refresh();
@@ -59,7 +60,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
     setError(null);
     setLoading("google");
     try {
-      await signInWithGoogle(mode === "signup" ? "/onboarding" : next);
+      await signInWithGoogle(mode === "signup" ? "/onboarding" : next, remember);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't start Google sign-in.");
       setLoading(null);
@@ -119,7 +120,11 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
           />
         </Field>
         {mode === "signin" && (
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between gap-3">
+            <label className="flex items-center gap-2 text-[13px] text-muted">
+              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="size-4 accent-[var(--color-accent)]" />
+              Remember me
+            </label>
             <Link href="/forgot-password" className="text-[13px] text-muted underline-offset-4 hover:text-ink hover:underline">
               Forgot password?
             </Link>

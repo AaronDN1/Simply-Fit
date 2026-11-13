@@ -23,6 +23,7 @@ interface DemoAccount {
 }
 const ACCOUNTS_KEY = "simplyfit:accounts";
 const SESSION_KEY = "simplyfit:session";
+const SUPABASE_REMEMBER_KEY = "simplyfit:supabase-remember";
 
 async function hash(pw: string) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`simplyfit:${pw}`));
@@ -42,6 +43,22 @@ function writeAccounts(list: DemoAccount[]) {
   localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(list));
 }
 
+function storedSessionId() {
+  return localStorage.getItem(SESSION_KEY) ?? sessionStorage.getItem(SESSION_KEY);
+}
+
+function clearSupabasePersistence() {
+  for (const key of Object.keys(localStorage)) {
+    if (key.startsWith("sb-") && key.endsWith("-auth-token")) localStorage.removeItem(key);
+  }
+}
+
+function saveDemoSession(id: string, remember: boolean) {
+  localStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
+  (remember ? localStorage : sessionStorage).setItem(SESSION_KEY, id);
+}
+
 function siteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
 }
@@ -49,6 +66,10 @@ function siteUrl() {
 /* ---------------- Public API ---------------- */
 
 export async function getCurrentUser(): Promise<AuthUser | null> {
+  if (sessionStorage.getItem(SUPABASE_REMEMBER_KEY) === "0") {
+    clearSupabasePersistence();
+    sessionStorage.removeItem(SUPABASE_REMEMBER_KEY);
+  }
   const sb = getSupabaseBrowser();
   if (sb) {
     const { data } = await sb.auth.getUser();
@@ -56,7 +77,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     if (!u) return null;
     return { id: u.id, email: u.email ?? "", name: (u.user_metadata?.full_name as string) ?? (u.user_metadata?.name as string) ?? "" };
   }
-  const id = localStorage.getItem(SESSION_KEY);
+  const id = storedSessionId();
   const acc = readAccounts().find((a) => a.id === id);
   return acc ? { id: acc.id, email: acc.email, name: acc.name } : null;
 }
@@ -76,25 +97,27 @@ export async function signUpWithEmail(email: string, password: string, name: str
   if (accounts.some((a) => a.email.toLowerCase() === email.toLowerCase())) throw new Error("An account with this email already exists.");
   const acc: DemoAccount = { id: uid(), email, name, passwordHash: await hash(password) };
   writeAccounts([...accounts, acc]);
-  localStorage.setItem(SESSION_KEY, acc.id);
+  saveDemoSession(acc.id, true);
   return { needsConfirmation: false };
 }
 
-export async function signInWithEmail(email: string, password: string) {
+export async function signInWithEmail(email: string, password: string, remember = true) {
   const sb = getSupabaseBrowser();
   if (sb) {
     const { error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw new Error(error.message === "Invalid login credentials" ? "That email and password don't match." : error.message);
+    if (!remember) clearSupabasePersistence();
     return;
   }
   const acc = readAccounts().find((a) => a.email.toLowerCase() === email.toLowerCase());
   if (!acc || acc.passwordHash !== (await hash(password))) throw new Error("That email and password don't match.");
-  localStorage.setItem(SESSION_KEY, acc.id);
+  saveDemoSession(acc.id, remember);
 }
 
-export async function signInWithGoogle(next = "/today") {
+export async function signInWithGoogle(next = "/today", remember = true) {
   const sb = getSupabaseBrowser();
   if (!sb) throw new Error("Google sign-in needs Supabase to be configured. Use email to try the local demo.");
+  sessionStorage.setItem(SUPABASE_REMEMBER_KEY, remember ? "1" : "0");
   const { error } = await sb.auth.signInWithOAuth({
     provider: "google",
     options: { redirectTo: `${siteUrl()}/auth/callback?next=${encodeURIComponent(next)}` },
@@ -120,7 +143,7 @@ export async function updatePassword(password: string, demoEmail?: string) {
     return;
   }
   const accounts = readAccounts();
-  const id = localStorage.getItem(SESSION_KEY);
+  const id = storedSessionId();
   const acc = accounts.find((a) => (demoEmail ? a.email.toLowerCase() === demoEmail.toLowerCase() : a.id === id));
   if (!acc) throw new Error("No local account found for that email.");
   acc.passwordHash = await hash(password);
@@ -135,7 +158,7 @@ export async function updateEmail(email: string) {
     return { needsConfirmation: true };
   }
   const accounts = readAccounts();
-  const acc = accounts.find((a) => a.id === localStorage.getItem(SESSION_KEY));
+  const acc = accounts.find((a) => a.id === storedSessionId());
   if (acc) {
     acc.email = email;
     writeAccounts(accounts);
@@ -160,7 +183,10 @@ export async function linkGoogle() {
 export async function signOut() {
   const sb = getSupabaseBrowser();
   if (sb) await sb.auth.signOut();
-  else localStorage.removeItem(SESSION_KEY);
+  else {
+    localStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(SESSION_KEY);
+  }
 }
 
 export async function accessToken() {
@@ -179,12 +205,13 @@ export async function deleteAccount() {
     await sb.auth.signOut();
     return;
   }
-  const id = localStorage.getItem(SESSION_KEY);
+  const id = storedSessionId();
   if (id) {
     writeAccounts(readAccounts().filter((a) => a.id !== id));
     removeLocalSnapshot(id);
   }
   localStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
 }
 
 /** Creates (or re-enters) a local demo account. Used by "Try the demo". */
@@ -196,6 +223,6 @@ export async function startDemoSession() {
     acc = { id: uid(), email, name: "Alex", passwordHash: await hash("demo-password") };
     writeAccounts([...accounts, acc]);
   }
-  localStorage.setItem(SESSION_KEY, acc.id);
+  saveDemoSession(acc.id, true);
   return { id: acc.id, email: acc.email, name: acc.name };
 }

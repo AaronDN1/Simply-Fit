@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { ButtonLink } from "@/components/ui/button";
+import { LandingAuthAction } from "@/components/landing/auth-action";
 import { Hero } from "@/components/landing/hero";
 import { DashboardSection, FinalCta, HealthSection, HowItWorks, NutritionSection, PlansSection, ProgressSection } from "@/components/landing/sections";
 
@@ -19,9 +20,7 @@ export default function LandingPage() {
             </Link>
           </div>
           <div className="flex items-center gap-1.5">
-            <ButtonLink href="/login" variant="ghost" size="sm">
-              Sign in
-            </ButtonLink>
+            <LandingAuthAction />
             <ButtonLink href="/signup" size="sm">
               Build My Plan
             </ButtonLink>
