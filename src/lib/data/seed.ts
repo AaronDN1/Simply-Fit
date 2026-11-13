@@ -134,6 +134,7 @@ export function buildDemoSnapshot(id: string, email: string, name: string): Snap
         notifications: { dailyPlan: true, mealReminders: false, workoutReminders: true, weeklyReview: true },
         privacy: { aiUsesHistory: true, productAnalytics: false },
         health: { appleHealth: "connected", healthConnect: "not_connected", lastSyncAt: new Date().toISOString() },
+        savedMeals: [],
       },
       onboardedAt: new Date(Date.now() - 40 * 86_400_000).toISOString(),
       createdAt: new Date(Date.now() - 40 * 86_400_000).toISOString(),

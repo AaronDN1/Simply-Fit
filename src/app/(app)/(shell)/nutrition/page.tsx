@@ -9,6 +9,7 @@ import { AnimatedNumber, Bar, Ring } from "@/components/ui/data";
 import { NutritionChat, MEAL_LABEL } from "@/components/app/nutrition-chat";
 import { MacroEditor } from "@/components/app/macro-editor";
 import { FoodSheet } from "@/components/app/food-sheet";
+import { SavedMeals } from "@/components/app/saved-meals";
 import { useStore } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
 import { totalsFor } from "@/lib/stats";
@@ -94,9 +95,12 @@ export default function NutritionPage() {
       </Card>
 
       <div className="grid gap-5 lg:grid-cols-[1.1fr_1fr]">
-        <Card className="overflow-hidden lg:sticky lg:top-8 lg:self-start">
-          <NutritionChat key={date} date={date} remaining={remaining} />
-        </Card>
+        <div className="space-y-3 lg:sticky lg:top-8 lg:self-start">
+          <Card className="overflow-hidden">
+            <NutritionChat key={date} date={date} remaining={remaining} />
+          </Card>
+          <SavedMeals date={date} />
+        </div>
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">

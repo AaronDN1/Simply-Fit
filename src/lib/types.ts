@@ -91,6 +91,14 @@ export interface FoodEntry {
   createdAt: string;
 }
 
+export interface SavedMeal {
+  id: string;
+  name: string;
+  meal: Meal;
+  items: Omit<FoodEntry, "id" | "date" | "meal" | "source" | "createdAt">[];
+  createdAt: string;
+}
+
 export interface CardioEntry {
   id: string;
   date: string;
@@ -185,6 +193,7 @@ export interface Settings {
   };
   privacy: { aiUsesHistory: boolean; productAnalytics: boolean };
   health: { appleHealth: HealthStatus; healthConnect: HealthStatus; lastSyncAt: string | null };
+  savedMeals: SavedMeal[];
 }
 
 export interface Profile {
@@ -212,4 +221,5 @@ export const defaultSettings: Settings = {
   notifications: { dailyPlan: true, mealReminders: false, workoutReminders: true, weeklyReview: true },
   privacy: { aiUsesHistory: true, productAnalytics: false },
   health: { appleHealth: "not_connected", healthConnect: "not_connected", lastSyncAt: null },
+  savedMeals: [],
 };

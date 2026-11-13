@@ -10,7 +10,7 @@ import { AiInputTools, type AiAttachment } from "@/components/app/ai-input-tools
 import { useStore } from "@/lib/store";
 import { apiPost } from "@/lib/api";
 import { mealForTime, type EstimateItem, type EstimateResult } from "@/lib/foods";
-import type { Meal } from "@/lib/types";
+import type { Meal, SavedMeal } from "@/lib/types";
 import { cn, todayISO, uid } from "@/lib/utils";
 
 interface Msg {
@@ -24,15 +24,16 @@ const SUGGESTIONS = ["2 eggs and a slice of toast for breakfast", "150g white ri
 export const MEAL_LABEL: Record<Meal, string> = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack: "Snack" };
 
 export function NutritionChat({ date = todayISO(), remaining }: { date?: string; remaining: number }) {
-  const { data, saveFood } = useStore();
+  const { data, saveFood, updateProfile } = useStore();
   const toast = useToast();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<AiAttachment[]>([]);
   const [thinking, setThinking] = useState(false);
-  const [estimate, setEstimate] = useState<{ items: EstimateItem[]; meal: Meal; engine: string } | null>(null);
+  const [estimate, setEstimate] = useState<{ items: EstimateItem[]; meal: Meal; mealName?: string; engine: string } | null>(null);
   const [logged, setLogged] = useState<{ calories: number; meal: Meal } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [savingMeal, setSavingMeal] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -63,7 +64,7 @@ export function NutritionChat({ date = todayISO(), remaining }: { date?: string;
         },
       });
       setMessages((m) => [...m, { id: uid(), role: "assistant", content: res.reply }]);
-      if (res.status === "ready" && res.items.length) setEstimate({ items: res.items, meal: res.meal ?? mealForTime(), engine: res.engine });
+      if (res.status === "ready" && res.items.length) setEstimate({ items: res.items, meal: res.meal ?? mealForTime(), mealName: res.mealName, engine: res.engine });
     } catch (e) {
       setMessages((m) => [...m, { id: uid(), role: "assistant", content: e instanceof Error ? e.message : "Something went wrong." }]);
     } finally {
@@ -99,6 +100,26 @@ export function NutritionChat({ date = todayISO(), remaining }: { date?: string;
       toast(e instanceof Error ? e.message : "Couldn't log that", "error");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveMeal() {
+    if (!estimate) return;
+    setSavingMeal(true);
+    try {
+      const saved: SavedMeal = {
+        id: uid(),
+        name: estimate.mealName?.trim() || estimate.items.map((item) => item.name).slice(0, 2).join(" + ") || MEAL_LABEL[estimate.meal],
+        meal: estimate.meal,
+        items: estimate.items.map(({ name, quantity, calories, proteinG, carbsG, fatG }) => ({ name, quantity, calories, proteinG, carbsG, fatG })),
+        createdAt: new Date().toISOString(),
+      };
+      await updateProfile({ settings: { ...data.profile.settings, savedMeals: [...data.profile.settings.savedMeals, saved] } });
+      toast("Meal saved for next time");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Couldn't save meal", "error");
+    } finally {
+      setSavingMeal(false);
     }
   }
 
@@ -161,7 +182,7 @@ export function NutritionChat({ date = todayISO(), remaining }: { date?: string;
         )}
 
         <AnimatePresence>
-          {estimate && <EstimateCard key="est" estimate={estimate} setEstimate={setEstimate} onConfirm={confirm} saving={saving} />}
+          {estimate && <EstimateCard key="est" estimate={estimate} setEstimate={setEstimate} onConfirm={confirm} onSave={saveMeal} saving={saving} savingMeal={savingMeal} />}
           {logged && (
             <motion.div
               key="logged"
@@ -224,12 +245,16 @@ function EstimateCard({
   estimate,
   setEstimate,
   onConfirm,
+  onSave,
   saving,
+  savingMeal,
 }: {
-  estimate: { items: EstimateItem[]; meal: Meal; engine: string };
-  setEstimate: (e: { items: EstimateItem[]; meal: Meal; engine: string } | null) => void;
+  estimate: { items: EstimateItem[]; meal: Meal; mealName?: string; engine: string };
+  setEstimate: (e: { items: EstimateItem[]; meal: Meal; mealName?: string; engine: string } | null) => void;
   onConfirm: () => void;
+  onSave: () => void;
   saving: boolean;
+  savingMeal: boolean;
 }) {
   const [editing, setEditing] = useState<number | null>(null);
   const total = estimate.items.reduce(
@@ -319,9 +344,14 @@ function EstimateCard({
           onChange={(meal) => setEstimate({ ...estimate, meal })}
           options={(Object.keys(MEAL_LABEL) as Meal[]).map((m) => ({ value: m, label: MEAL_LABEL[m] }))}
         />
-        <Button onClick={onConfirm} loading={saving} size="sm" className="h-9">
-          <Check className="size-4" /> Log to {MEAL_LABEL[estimate.meal]}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={onSave} loading={savingMeal} size="sm" className="h-9">
+            Save meal
+          </Button>
+          <Button onClick={onConfirm} loading={saving} size="sm" className="h-9">
+            <Check className="size-4" /> Log meal
+          </Button>
+        </div>
       </div>
     </motion.div>
   );

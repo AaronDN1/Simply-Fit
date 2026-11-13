@@ -45,6 +45,7 @@ const EMPTY: Snapshot = {
       notifications: { dailyPlan: true, mealReminders: false, workoutReminders: true, weeklyReview: true },
       privacy: { aiUsesHistory: true, productAnalytics: false },
       health: { appleHealth: "not_connected", healthConnect: "not_connected", lastSyncAt: null },
+      savedMeals: [],
     },
     onboardedAt: null,
     createdAt: "",

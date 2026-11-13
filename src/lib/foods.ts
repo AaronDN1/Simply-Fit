@@ -111,6 +111,7 @@ export interface EstimateItem {
 export interface EstimateResult {
   status: "needs_info" | "ready" | "unknown";
   reply: string;
+  mealName?: string;
   items: EstimateItem[];
   meal: "breakfast" | "lunch" | "dinner" | "snack" | null;
 }

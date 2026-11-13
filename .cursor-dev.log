@@ -6553,3 +6553,29 @@ https://react.dev/link/hydration-mismatch
  GET /today 200 in 50ms (next.js: 22ms, proxy.ts: 4ms, application-code: 24ms)
  GET / 200 in 87ms (next.js: 6ms, proxy.ts: 7ms, application-code: 73ms)
 [browser] You have Reduced Motion enabled on your device. Animations may not appear as expected.. For more information and steps for solving, visit https://motion.dev/troubleshooting/reduced-motion-disabled
+ GET /today 200 in 34ms (next.js: 7ms, proxy.ts: 4ms, application-code: 23ms)
+ GET /nutrition 200 in 51ms (next.js: 27ms, proxy.ts: 4ms, application-code: 20ms)
+ POST /api/ai/nutrition 200 in 4.6s (next.js: 13ms, proxy.ts: 5ms, application-code: 4.6s)
+⚠ Fast Refresh had to perform a full reload when ./src/lib/types.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 76ms
+ GET /nutrition 200 in 133ms (next.js: 81ms, proxy.ts: 6ms, application-code: 46ms)
+[browser] You have Reduced Motion enabled on your device. Animations may not appear as expected.. For more information and steps for solving, visit https://motion.dev/troubleshooting/reduced-motion-disabled
+✓ Compiled in 52ms
+✓ Compiled in 46ms
+✓ Compiled in 79ms
+⚠ Fast Refresh had to perform a full reload when ./src/lib/data/seed.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 76ms
+ GET /nutrition 200 in 147ms (next.js: 60ms, proxy.ts: 7ms, application-code: 81ms)
+[browser] You have Reduced Motion enabled on your device. Animations may not appear as expected.. For more information and steps for solving, visit https://motion.dev/troubleshooting/reduced-motion-disabled
+⚠ Fast Refresh had to perform a full reload when ./src/lib/store.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 66ms
+ GET /nutrition 200 in 145ms (next.js: 29ms, proxy.ts: 5ms, application-code: 110ms)
+[browser] You have Reduced Motion enabled on your device. Animations may not appear as expected.. For more information and steps for solving, visit https://motion.dev/troubleshooting/reduced-motion-disabled
+ POST /api/ai/nutrition 200 in 5.3s (next.js: 16ms, proxy.ts: 8ms, application-code: 5.2s)
+ GET /nutrition 200 in 58ms (next.js: 10ms, proxy.ts: 6ms, application-code: 42ms)
+✓ Compiled in 46ms
+ POST /api/ai/nutrition 200 in 2.3s (next.js: 23ms, proxy.ts: 4ms, application-code: 2.2s)
+ POST /api/ai/nutrition 200 in 4.3s (next.js: 4ms, proxy.ts: 3ms, application-code: 4.2s)
+ GET /nutrition 200 in 65ms (next.js: 24ms, proxy.ts: 5ms, application-code: 36ms)
+[browser] You have Reduced Motion enabled on your device. Animations may not appear as expected.. For more information and steps for solving, visit https://motion.dev/troubleshooting/reduced-motion-disabled
+ POST /api/ai/nutrition 200 in 3.5s (next.js: 5ms, proxy.ts: 5ms, application-code: 3.5s)
