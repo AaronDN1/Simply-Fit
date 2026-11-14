@@ -12,6 +12,8 @@ import { useToast } from "@/components/ui/toast";
 import { useStore } from "@/lib/store";
 import { deleteAccount, linkGoogle, linkedProviders, signOut, updateEmail, updatePassword } from "@/lib/auth";
 import { detectDevice, nativeBridge, PLATFORM_LABEL, type HealthPlatform } from "@/lib/health";
+import { LegalLinks } from "@/components/legal/document";
+import { AI_OFF_COPY, AI_ON_COPY } from "@/lib/legal";
 import { buildPlan } from "@/lib/plan";
 import { displayWeight, inputWeightToKg } from "@/lib/units";
 import type { Settings } from "@/lib/types";
@@ -46,10 +48,12 @@ export default function SettingsPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [healthHelp, setHealthHelp] = useState<HealthPlatform | null>(null);
+  const [nativePlatform, setNativePlatform] = useState<HealthPlatform | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   useEffect(() => {
     linkedProviders().then(setProviders);
+    setNativePlatform(nativeBridge()?.platform ?? null);
   }, []);
 
   async function run(key: string, fn: () => Promise<unknown>, msg: string) {
@@ -193,7 +197,8 @@ export default function SettingsPage() {
           </div>
         </Section>
 
-        <Section id="health" title="Health data" description="Sync steps, sleep, workouts, and weight from your phone.">
+        <Section id="health" title="Health data" description="Steps, sleep, workouts, and weight.">
+          {nativePlatform ? (
           <div className="space-y-2">
             {(["apple_health", "health_connect"] as HealthPlatform[]).map((p) => {
               const status = p === "apple_health" ? settings.health.appleHealth : settings.health.healthConnect;
@@ -222,8 +227,13 @@ export default function SettingsPage() {
                 </div>
               );
             })}
-            <p className="pt-1 text-[12px] text-muted">Not connected? Everything can be logged manually in a few taps. You choose exactly which data types are shared.</p>
+            <p className="pt-1 text-[12px] text-muted">You choose which data types to share from this phone. Anything you don't share can still be typed in.</p>
           </div>
+          ) : (
+            <p className="text-[14px] leading-relaxed text-ink-soft">
+              This browser can't read Apple Health or Health Connect, and Simply Fit doesn't pull data from a watch or scale in the background. Log steps, sleep, cardio, and weight yourself. A future phone app will be able to sync them after you allow it.
+            </p>
+          )}
         </Section>
 
         <Section title="Units">
@@ -233,22 +243,7 @@ export default function SettingsPage() {
           </div>
         </Section>
 
-        <Section title="Notifications" description="Gentle reminders, never nagging.">
-          <div className="divide-y divide-line">
-            {(
-              [
-                ["dailyPlan", "Morning plan", "A short summary of today's plan"],
-                ["mealReminders", "Meal logging reminders", "If you haven't logged by mid-afternoon"],
-                ["workoutReminders", "Workout reminders", "On scheduled training days"],
-                ["weeklyReview", "Weekly review", "Sunday evening recap"],
-              ] as const
-            ).map(([k, l, d]) => (
-              <Toggle key={k} label={l} description={d} checked={settings.notifications[k]} onChange={(v) => setSettings({ notifications: { ...settings.notifications, [k]: v } })} />
-            ))}
-          </div>
-        </Section>
-
-        <Section title="Dietary preferences" description="Used by the AI when estimating and suggesting food.">
+        <Section title="Dietary preferences" description="Included with cloud AI estimates so suggestions fit how you eat.">
           <div className="flex flex-wrap gap-2">
             {DIETS.map((x) => {
               const on = intake?.dietaryPreferences.includes(x);
@@ -299,21 +294,22 @@ export default function SettingsPage() {
           </div>
         </Section>
 
-        <Section title="Privacy" description="Your data is yours. It's never sold.">
+        <Section title="Privacy" description="Your account data is stored for your plan. It is not sold.">
           <div className="divide-y divide-line">
             <Toggle
-              label="Let the AI use my preferences"
-              description="Shares dietary preferences and today's remaining calories with the AI for better estimates."
+              label="Use cloud AI for meals and workouts"
+              description={
+                mode === "demo"
+                  ? "This browser demo never sends data to OpenAI. In the hosted app, this sends meal text, photos, and voice notes, plus diet preferences and allergies."
+                  : settings.privacy.aiUsesHistory
+                    ? AI_ON_COPY
+                    : AI_OFF_COPY
+              }
               checked={settings.privacy.aiUsesHistory}
               onChange={(v) => setSettings({ privacy: { ...settings.privacy, aiUsesHistory: v } })}
             />
-            <Toggle
-              label="Anonymous product analytics"
-              description="Helps us improve Simply Fit. Never includes health data."
-              checked={settings.privacy.productAnalytics}
-              onChange={(v) => setSettings({ privacy: { ...settings.privacy, productAnalytics: v } })}
-            />
           </div>
+          <LegalLinks className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-[13px] text-muted" />
         </Section>
 
         <Section title="Your data">

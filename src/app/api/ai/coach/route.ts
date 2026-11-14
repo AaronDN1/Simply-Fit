@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { SAFETY_PRINCIPLES, clientKey, getOpenAI, modelOptions, prepareAiAttachments, rateLimited } from "@/lib/ai/server";
+import { SAFETY_PRINCIPLES, cloudError, getOpenAI, modelOptions, prepareAiAttachments, resolveCloudAi } from "@/lib/ai/server";
 import { getRequestUser } from "@/lib/supabase/server";
 import { EXERCISES, recommendedSplit } from "@/lib/workouts";
 import type { EquipmentAccess, Split, TrainingStyle } from "@/lib/types";
@@ -16,6 +16,7 @@ const Body = z.object({
     sessionMinutes: z.number().min(15).max(180),
   }),
   currentSplit: z.string().max(4000).optional(),
+  useCloud: z.boolean().optional(),
   attachments: z
     .array(z.object({ type: z.enum(["image", "audio"]), dataUrl: z.string().max(20_000_000), name: z.string().max(120) }))
     .max(3)
@@ -140,21 +141,30 @@ function offlineSplit(request: string, p: z.infer<typeof Body>["profile"]): { re
 export async function POST(req: Request) {
   const auth = await getRequestUser(req);
   if (auth.configured && !auth.user) return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
-  if (rateLimited(`coach:${clientKey(req, auth.user?.id)}`, 10)) return NextResponse.json({ error: "Give it a minute and try again." }, { status: 429 });
 
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
-  const { request, profile, currentSplit, attachments } = parsed.data;
+  const { request, profile, currentSplit, attachments, useCloud } = parsed.data;
 
-  const openai = getOpenAI();
-  if (!openai) {
+  const decision = await resolveCloudAi({
+    req,
+    userId: auth.user?.id ?? null,
+    requested: useCloud !== false,
+    bucket: "coach",
+    hasAttachments: Boolean(attachments?.length),
+  });
+  if (decision.mode !== "cloud") {
+    if (decision.mode === "error") return cloudError(decision);
     const fallback = offlineSplit(request, profile);
     return NextResponse.json({
       ...fallback,
-      reply: attachments?.length ? `${fallback.reply} Image and voice review becomes available when an OpenAI key is configured.` : fallback.reply,
+      reply: [fallback.reply, decision.note].filter(Boolean).join(" "),
       engine: "offline",
     });
   }
+
+  const openai = getOpenAI();
+  if (!openai) return NextResponse.json({ error: "AI is unavailable." }, { status: 503 });
 
   try {
     const prepared = await prepareAiAttachments(openai, attachments, "high");

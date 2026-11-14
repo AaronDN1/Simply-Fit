@@ -14,6 +14,7 @@ import { nextActionCopy, todayPlan, type ActionKey } from "@/lib/today";
 import { average, latest, sleepSeries, stepSeries, weightSeries, weightTrend } from "@/lib/stats";
 import { displayWeight, formatWeight } from "@/lib/units";
 import { readinessAdvice, readinessScore } from "@/lib/plan";
+import { nativeBridge } from "@/lib/health";
 import { mealForTime } from "@/lib/foods";
 import { WorkoutCheckoff } from "@/components/app/workout-checkoff";
 import { cn, formatDay, greeting, lastNDays, todayISO } from "@/lib/utils";
@@ -26,7 +27,9 @@ export default function TodayPage() {
   const [date] = useState(todayISO);
   const [now, setNow] = useState(() => new Date());
   const [open, setOpen] = useState<DetailKey | null>(null);
+  const [nativePlatform, setNativePlatform] = useState(false);
   useEffect(() => {
+    setNativePlatform(!!nativeBridge());
     const t = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(t);
   }, []);
@@ -86,7 +89,7 @@ export default function TodayPage() {
           <AnimatedNumber value={t.steps} /> <span className="text-muted">/ {(plan.levers.stepTarget / 1000).toFixed(plan.levers.stepTarget % 1000 ? 1 : 0)}k</span>
         </>
       ),
-      sub: t.log?.stepsSource && t.log.stepsSource !== "manual" ? "Synced from your phone" : "Tap to update",
+      sub: nativePlatform && t.log?.stepsSource && t.log.stepsSource !== "manual" ? "Synced from your phone" : "Tap to update",
       progress: t.steps / plan.levers.stepTarget,
       tone: "var(--color-accent)",
     },
@@ -128,7 +131,7 @@ export default function TodayPage() {
         </h1>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-[1.35fr_1fr] lg:gap-5">
+      <div className="space-y-4">
         {/* Today's plan */}
         <Card className="overflow-hidden">
           <div className="bg-ink p-5 text-canvas sm:p-6">
@@ -215,7 +218,8 @@ export default function TodayPage() {
       </div>
 
       {/* Essentials */}
-      <h2 className="mb-3 mt-8 text-[15px] font-semibold tracking-tight">Today at a glance</h2>
+      <h2 className="mb-1 mt-8 text-[15px] font-semibold tracking-tight">At a glance</h2>
+      <p className="mb-3 max-w-xl text-[13px] leading-relaxed text-muted">These are details. The step at the top is the one to do next.</p>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:gap-4">
         {cards.map((c) =>
           open === c.key ? (
@@ -356,7 +360,7 @@ function Detail({ k, close }: { k: DetailKey; close: () => void }) {
         <MiniBars values={series} target={plan.levers.stepTarget} labels={labels} height={90} className="mt-5" />
         <p className="mb-2 mt-6 text-[13px] font-medium text-ink-soft">Today's steps</p>
         <StepsForm onDone={close} />
-        <p className="mt-3 text-[12px] text-muted">Connect Apple Health or Health Connect in Settings to fill this in automatically.</p>
+        <p className="mt-3 text-[12px] text-muted">Enter today's steps here. This browser doesn't sync a phone or watch.</p>
       </div>
     );
   }

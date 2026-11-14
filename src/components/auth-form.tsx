@@ -8,6 +8,7 @@ import { MailCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { authMode, signInWithEmail, signInWithGoogle, signUpWithEmail, startDemoSession } from "@/lib/auth";
+import { LEGAL_ACCEPT_KEY, LEGAL_VERSION } from "@/lib/legal";
 import { buildDemoSnapshot } from "@/lib/data/seed";
 import { readLocalSnapshot, writeLocalSnapshot } from "@/lib/data/local";
 
@@ -30,6 +31,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
+  const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState<string | null>(params.get("error"));
   const [loading, setLoading] = useState<"email" | "google" | "demo" | null>(null);
   const [sent, setSent] = useState(false);
@@ -38,10 +40,12 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
     e.preventDefault();
     setError(null);
     if (mode === "signup" && password.length < 8) return setError("Use at least 8 characters for your password.");
+    if (mode === "signup" && !agreed) return setError("Agree to the Terms and Privacy Policy to create an account.");
     setLoading("email");
     try {
       if (mode === "signup") {
         const { needsConfirmation } = await signUpWithEmail(email.trim(), password, name.trim());
+        sessionStorage.setItem(LEGAL_ACCEPT_KEY, LEGAL_VERSION);
         if (needsConfirmation) return setSent(true);
         router.replace("/onboarding");
       } else {
@@ -58,6 +62,8 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
 
   async function google() {
     setError(null);
+    if (mode === "signup" && !agreed) return setError("Agree to the Terms and Privacy Policy to create an account.");
+    if (mode === "signup") sessionStorage.setItem(LEGAL_ACCEPT_KEY, LEGAL_VERSION);
     setLoading("google");
     try {
       await signInWithGoogle(mode === "signup" ? "/onboarding" : next, remember);
@@ -93,7 +99,24 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
       <h1 className="font-display text-[38px] leading-[1.05] tracking-tight">{mode === "signup" ? "Build your plan" : "Welcome back"}</h1>
       <p className="mt-2 text-[15px] text-muted">{mode === "signup" ? "Create an account — it takes about three minutes to get your plan." : "Sign in to see what's on for today."}</p>
 
-      <Button variant="secondary" size="lg" className="mt-7 w-full" onClick={google} loading={loading === "google"}>
+      {mode === "signup" && (
+        <label className="mt-6 flex items-start gap-2.5 text-[13px] leading-relaxed text-muted">
+          <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 size-4 accent-[var(--color-accent)]" />
+          <span>
+            I agree to the{" "}
+            <Link href="/terms" target="_blank" className="font-medium text-ink underline-offset-4 hover:underline">
+              Terms
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" target="_blank" className="font-medium text-ink underline-offset-4 hover:underline">
+              Privacy Policy
+            </Link>
+            . I'm 16 or older, and I understand Simply Fit gives general guidance, not medical advice.
+          </span>
+        </label>
+      )}
+
+      <Button variant="secondary" size="lg" className={mode === "signup" ? "mt-4 w-full" : "mt-7 w-full"} onClick={google} loading={loading === "google"}>
         <GoogleIcon /> {mode === "signup" ? "Sign up with Google" : "Continue with Google"}
       </Button>
 

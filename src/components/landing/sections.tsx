@@ -308,20 +308,20 @@ export function HealthSection() {
     <section className="px-5 py-24 sm:px-8 sm:py-32">
       <div className="mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-2">
         <SectionHead
-          kicker="Mobile health sync"
-          title={<>Your steps and sleep, already filled in.</>}
-          body="Connect Apple Health or Health Connect where available and Simply Fit pulls in steps, sleep, workouts, and weight automatically. Not connected? Logging manually takes seconds."
+          kicker="Activity, logged simply"
+          title={<>Steps, sleep, and cardio, in the same place.</>}
+          body="Log them in a few taps. This website doesn't read Apple Health, Health Connect, or a smart scale. A future phone app will be able to, after you allow it. Until then, nothing is pulled from your phone."
         />
         <Reveal delay={0.1}>
           <div className="mx-auto w-full max-w-sm rounded-[36px] border border-line bg-surface p-3 shadow-[var(--shadow-lift)]">
             <div className="rounded-[28px] bg-canvas p-5">
-              <p className="text-[12px] font-medium uppercase tracking-[0.14em] text-muted">Synced this morning</p>
+              <p className="text-[12px] font-medium uppercase tracking-[0.14em] text-muted">Logged today</p>
               <div className="mt-4 space-y-2">
                 {[
-                  { icon: <Footprints className="size-4" />, l: "Steps", v: "11,204", s: "Apple Health" },
-                  { icon: <Moon className="size-4" />, l: "Sleep", v: "7h 52m", s: "Apple Health" },
-                  { icon: <Activity className="size-4" />, l: "Cycling", v: "32 min", s: "Health Connect" },
-                  { icon: <HeartPulse className="size-4" />, l: "Weight", v: "171.4 lb", s: "Smart scale" },
+                  { icon: <Footprints className="size-4" />, l: "Steps", v: "11,204", s: "Entered by you" },
+                  { icon: <Moon className="size-4" />, l: "Sleep", v: "7h 52m", s: "Entered by you" },
+                  { icon: <Activity className="size-4" />, l: "Cycling", v: "32 min", s: "Entered by you" },
+                  { icon: <HeartPulse className="size-4" />, l: "Weight", v: "171.4 lb", s: "Entered by you" },
                 ].map((r, i) => (
                   <motion.div
                     key={r.l}
@@ -341,7 +341,7 @@ export function HealthSection() {
                 ))}
               </div>
               <p className="mt-4 flex items-center justify-center gap-1.5 text-[12px] text-muted">
-                <Smartphone className="size-3.5" /> You choose exactly what's shared
+                <Smartphone className="size-3.5" /> Phone sync comes later, and only if you allow it
               </p>
             </div>
           </div>

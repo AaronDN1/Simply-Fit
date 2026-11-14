@@ -8,9 +8,10 @@ import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { Choices, Field, Input, Segmented, Slider, Textarea, UnitInput } from "@/components/ui/field";
 import { useStore } from "@/lib/store";
-import type { Goal, Intake, Priority, Settings } from "@/lib/types";
+import type { Goal, Intake, Plan, Priority, Settings } from "@/lib/types";
 import { cmToFtIn, ftInToCm, kgToLb, lbToKg } from "@/lib/units";
-import { generatePlan, rateBounds } from "@/lib/plan";
+import { ageBlockMessage, isEligibleAge } from "@/lib/legal";
+import { GOAL_LABEL, generatePlan, rateBounds } from "@/lib/plan";
 import { recommendedSplit, EQUIPMENT_LABEL } from "@/lib/workouts";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
@@ -72,13 +73,16 @@ export default function OnboardingPage() {
   const [units, setUnits] = useState<Settings["units"]>(data.profile.settings.units);
   const [error, setError] = useState<string | null>(null);
   const [building, setBuilding] = useState(false);
+  const [skipped, setSkipped] = useState<Set<string>>(() => new Set());
+  const [readyPlan, setReadyPlan] = useState<Plan | null>(null);
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((s) => ({ ...s, [k]: v }));
   const toggle = <T extends string>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
   function validate() {
     if (step === 1) {
-      if (!d.age || d.age < 16 || d.age > 90) return "Enter an age between 16 and 90.";
+      if (d.age !== "" && d.age < 16) return "Simply Fit is for people 16 and older, so we can't build a plan or store health data for this age.";
+      if (!d.age || d.age > 90) return "Enter an age between 16 and 90.";
       if (!d.heightCm || d.heightCm < 120 || d.heightCm > 230) return "Enter your height.";
       if (!d.weightKg || d.weightKg < 35 || d.weightKg > 300) return "Enter your current weight.";
     }
@@ -90,7 +94,13 @@ export default function OnboardingPage() {
     if (delta > 0 && !skip) {
       const e = validate();
       if (e) return setError(e);
+      setSkipped((current) => {
+        const next = new Set(current);
+        next.delete(STEPS[step].key);
+        return next;
+      });
     }
+    if (delta > 0 && skip) setSkipped((current) => new Set(current).add(STEPS[step].key));
     setError(null);
     setDir(delta);
     if (step + delta >= STEPS.length) return finish();
@@ -99,22 +109,35 @@ export default function OnboardingPage() {
 
   async function finish() {
     const intake: Intake = { ...d, age: Number(d.age), heightCm: Number(d.heightCm), weightKg: Number(d.weightKg) };
+    if (!isEligibleAge(intake.age)) {
+      setError(ageBlockMessage());
+      return;
+    }
     setBuilding(true);
     try {
       const plan = generatePlan(intake, units);
       const split = recommendedSplit(intake, plan.levers.liftingDays);
       await Promise.all([updateProfile((p) => ({ intake, plan, split, settings: { ...p.settings, units }, onboardedAt: new Date().toISOString() })), new Promise((r) => setTimeout(r, 1400))]);
-      router.replace("/plan?welcome=1");
+      setReadyPlan(plan);
+      setBuilding(false);
     } catch (e) {
       setBuilding(false);
       toast(e instanceof Error ? e.message : "Couldn't save your plan.", "error");
     }
   }
 
+  function continueToPlan() {
+    const lines = assumptionLines(skipped, d);
+    if (lines.length) sessionStorage.setItem("simplyfit:assumptions", JSON.stringify(lines));
+    else sessionStorage.removeItem("simplyfit:assumptions");
+    router.replace("/plan?welcome=1");
+  }
+
   const current = STEPS[step];
   const needsBody = step === 1;
 
   if (building) return <Building />;
+  if (readyPlan) return <PlanReveal plan={readyPlan} lines={assumptionLines(skipped, d)} goal={GOAL_LABEL[d.goal]} onContinue={continueToPlan} />;
 
   return (
     <div className="flex min-h-[100svh] flex-col">
@@ -504,6 +527,76 @@ function HeightInput({ cm, metric, onChange }: { cm: number | ""; metric: boolea
         <UnitInput ariaLabel="Inches" value={inches} unit="in" placeholder="0" onChange={(v) => onChange(ftInToCm(ft === "" ? 5 : ft, v === "" ? 0 : v))} />
       </div>
     </Field>
+  );
+}
+
+const EXPERIENCE_LABEL = { new: "new to lifting", intermediate: "some lifting experience", advanced: "experienced" } as const;
+const ACTIVITY_LABEL = { sedentary: "mostly sitting", light: "lightly active", moderate: "on your feet", active: "physical work", very_active: "very active" } as const;
+const MEAL_LABEL = { three_meals: "three meals", three_plus_snacks: "meals plus snacks", two_meals: "two bigger meals", flexible: "a flexible meal rhythm" } as const;
+
+function assumptionLines(skipped: Set<string>, d: Draft) {
+  const lines: string[] = [];
+  if (skipped.has("training")) {
+    lines.push(`Training: ${EXPERIENCE_LABEL[d.experience]}, ${d.liftingDaysPerWeek} lifting days a week, ${d.liftingSessionMinutes}-minute sessions, ${EQUIPMENT_LABEL[d.equipment].toLowerCase()}.`);
+  }
+  if (skipped.has("activity")) {
+    lines.push(`Activity: about ${d.averageSteps.toLocaleString()} steps a day, ${d.cardioMinutesPerWeek} minutes of cardio a week, ${d.sleepHours} hours of sleep, and days that are ${ACTIVITY_LABEL[d.activityLevel]}.`);
+  }
+  if (skipped.has("food")) {
+    const diets = d.dietaryPreferences.length ? d.dietaryPreferences.join(", ") : "no diet selected";
+    const avoid = d.allergies.trim() ? `avoiding ${d.allergies.trim()}` : "nothing listed to avoid";
+    lines.push(`Food: ${diets}, ${MEAL_LABEL[d.mealStructure]}, ${avoid}.`);
+  }
+  if (skipped.has("pace")) {
+    lines.push(d.priorities.length ? "Pace: the steady default, plus priorities you had already picked." : "Pace: a steady rate, with no extra priorities.");
+  }
+  return lines;
+}
+
+function PlanReveal({ plan, lines, goal, onContinue }: { plan: Plan; lines: string[]; goal: string; onContinue: () => void }) {
+  const stats = [
+    ["Calories", plan.calorieTarget.toLocaleString()],
+    ["Protein", `${plan.proteinG} g`],
+    ["Lifting", `${plan.levers.liftingDays} days / week`],
+    ["Steps", plan.levers.stepTarget.toLocaleString()],
+    ["Cardio", `${plan.levers.cardioMinutesPerWeek} min / week`],
+    ["Sleep", `${plan.sleepTargetHours} h`],
+  ];
+  return (
+    <div className="mx-auto flex min-h-[100svh] w-full max-w-2xl flex-col px-5 py-8">
+      <Logo href="#" />
+      <p className="mt-10 text-[13px] font-medium uppercase tracking-[0.14em] text-accent">{goal}</p>
+      <h1 className="mt-2 font-display text-[40px] leading-[1.05] tracking-tight sm:text-[48px]">Here's your plan</h1>
+      <p className="mt-2 text-[15px] text-muted">These are the numbers we'll use. You can change any of them on the next screen.</p>
+      <dl className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {stats.map(([label, value]) => (
+          <div key={label} className="rounded-2xl border border-line bg-surface px-4 py-3">
+            <dt className="text-[12px] text-muted">{label}</dt>
+            <dd className="mt-1 text-[18px] font-semibold tabular tracking-tight">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="mt-6 rounded-2xl bg-sunken/70 px-4 py-3 text-[13px] leading-relaxed text-muted">
+        {lines.length ? (
+          <>
+            <p className="font-medium text-ink-soft">You skipped a few steps, so these are assumptions:</p>
+            <ul className="mt-2 list-disc space-y-1 pl-4">
+              {lines.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <p>You answered each step, so nothing here was filled in behind your back.</p>
+        )}
+      </div>
+      <p className="mt-4 text-[13px] leading-relaxed text-muted">General fitness guidance, not medical advice. Change anything that doesn't fit.</p>
+      <div className="mt-8">
+        <Button size="lg" onClick={onContinue}>
+          See the full plan <ArrowRight className="size-4" />
+        </Button>
+      </div>
+    </div>
   );
 }
 

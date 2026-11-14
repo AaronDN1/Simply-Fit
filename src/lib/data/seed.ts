@@ -93,7 +93,7 @@ export function buildDemoSnapshot(id: string, email: string, name: string): Snap
     daily.push({
       date,
       steps: Math.round(8200 + rand() * 4200),
-      stepsSource: "apple_health",
+      stepsSource: "manual",
       sleepHours: Math.round((6.6 + rand() * 1.9) * 4) / 4,
       sleepQuality: 2 + Math.floor(rand() * 4),
       weightKg: rand() > 0.2 ? Math.round((trendKg + noise) * 10) / 10 : null,
@@ -106,7 +106,7 @@ export function buildDemoSnapshot(id: string, email: string, name: string): Snap
         activity: ["Incline walk", "Cycling", "Easy run", "Rower"][Math.floor(rand() * 4)],
         minutes: [20, 25, 30, 35][Math.floor(rand() * 4)],
         intensity: rand() > 0.7 ? "hard" : rand() > 0.3 ? "moderate" : "easy",
-        source: rand() > 0.5 ? "apple_health" : "manual",
+        source: "manual",
         createdAt: `${date}T18:00:00.000Z`,
       });
 
@@ -133,7 +133,8 @@ export function buildDemoSnapshot(id: string, email: string, name: string): Snap
         units: { weight: "lb", height: "imperial" },
         notifications: { dailyPlan: true, mealReminders: false, workoutReminders: true, weeklyReview: true },
         privacy: { aiUsesHistory: true, productAnalytics: false },
-        health: { appleHealth: "connected", healthConnect: "not_connected", lastSyncAt: new Date().toISOString() },
+        legal: { acceptedAt: null, version: null },
+        health: { appleHealth: "not_connected", healthConnect: "not_connected", lastSyncAt: null },
         savedMeals: [],
       },
       onboardedAt: new Date(Date.now() - 40 * 86_400_000).toISOString(),
@@ -141,7 +142,7 @@ export function buildDemoSnapshot(id: string, email: string, name: string): Snap
     },
     foods,
     cardio,
-    daily: [...daily, { date: today, steps: 4312, stepsSource: "apple_health", sleepHours: 7.75, sleepQuality: 4, weightKg: null, readiness: null }],
+    daily: [...daily, { date: today, steps: 4312, stepsSource: "manual", sleepHours: 7.75, sleepQuality: 4, weightKg: null, readiness: null }],
     workouts,
   };
 }

@@ -12,6 +12,8 @@ import { apiPost } from "@/lib/api";
 import { mealForTime, type EstimateItem, type EstimateResult } from "@/lib/foods";
 import type { Meal, SavedMeal } from "@/lib/types";
 import { cn, todayISO, uid } from "@/lib/utils";
+import { AI_OFF_COPY, AI_ON_COPY } from "@/lib/legal";
+import Link from "next/link";
 
 interface Msg {
   id: string;
@@ -24,7 +26,7 @@ const SUGGESTIONS = ["2 eggs and a slice of toast for breakfast", "150g white ri
 export const MEAL_LABEL: Record<Meal, string> = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack: "Snack" };
 
 export function NutritionChat({ date = todayISO(), remaining }: { date?: string; remaining: number }) {
-  const { data, saveFood, updateProfile } = useStore();
+  const { data, mode, saveFood, updateProfile } = useStore();
   const toast = useToast();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -34,6 +36,9 @@ export function NutritionChat({ date = todayISO(), remaining }: { date?: string;
   const [logged, setLogged] = useState<{ calories: number; meal: Meal } | null>(null);
   const [saving, setSaving] = useState(false);
   const [savingMeal, setSavingMeal] = useState(false);
+  const wantsCloud = data.profile.settings.privacy.aiUsesHistory;
+  const cloud = wantsCloud && mode !== "demo";
+  const aiNote = mode === "demo" ? "This browser demo uses the built-in estimator and does not send meals to OpenAI." : wantsCloud ? AI_ON_COPY : AI_OFF_COPY;
   const scroller = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -44,6 +49,10 @@ export function NutritionChat({ date = todayISO(), remaining }: { date?: string;
   async function send(text: string) {
     const content = text.trim();
     if ((!content && !attachments.length) || thinking) return;
+    if (!cloud && attachments.length) {
+      toast("Turn on cloud AI in Settings to send a photo or voice note.", "error");
+      return;
+    }
     setLogged(null);
     const attachmentNote = attachments.length ? ` [${attachments.map((a) => a.type).join(", ")} attached]` : "";
     const next = [...messages, { id: uid(), role: "user" as const, content: content || "Please review the attached input." }];
@@ -56,10 +65,10 @@ export function NutritionChat({ date = todayISO(), remaining }: { date?: string;
     try {
       const res = await apiPost<EstimateResult & { engine: string }>("/api/ai/nutrition", {
         messages: next.map(({ role, content }, index) => ({ role, content: index === next.length - 1 ? `${content}${attachmentNote}` : content })),
-        attachments: currentAttachments,
+        attachments: cloud ? currentAttachments : undefined,
+        useCloud: cloud,
         context: {
           remainingCalories: remaining,
-          dietaryPreferences: data.profile.settings.privacy.aiUsesHistory ? data.profile.intake?.dietaryPreferences : undefined,
           localTime: new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
         },
       });
@@ -229,13 +238,21 @@ export function NutritionChat({ date = todayISO(), remaining }: { date?: string;
             aria-label="Describe what you ate"
             className="max-h-32 min-h-[36px] flex-1 resize-none bg-transparent py-2 text-[15px] outline-none placeholder:text-faint"
           />
-          <div className="absolute -translate-y-11">
-            <AiInputTools attachments={attachments} onChange={setAttachments} disabled={thinking} />
-          </div>
+          {cloud && (
+            <div className="absolute -translate-y-11">
+              <AiInputTools attachments={attachments} onChange={setAttachments} disabled={thinking} />
+            </div>
+          )}
           <button type="submit" disabled={(!input.trim() && !attachments.length) || thinking} className="grid size-9 shrink-0 place-items-center rounded-full bg-ink text-canvas transition-opacity disabled:opacity-30" aria-label="Send">
             <ArrowUp className="size-4" />
           </button>
         </div>
+        <p className="px-1 pt-2 text-[12px] leading-relaxed text-muted">
+          {aiNote}{" "}
+          <Link href="/settings" className="font-medium text-ink underline-offset-4 hover:underline">
+            Settings
+          </Link>
+        </p>
       </form>
     </div>
   );
@@ -277,7 +294,7 @@ function EstimateCard({
     >
       <div className="flex items-center justify-between">
         <p className="text-[13px] font-medium text-muted">Review estimate</p>
-        {estimate.engine === "offline" && <span className="rounded-full bg-sunken px-2 py-0.5 text-[11px] text-muted">Offline estimator</span>}
+        <span className="rounded-full bg-sunken px-2 py-0.5 text-[11px] text-muted">{estimate.engine === "offline" ? "Built-in estimator" : "OpenAI estimate"}</span>
       </div>
       <ul className="mt-2 divide-y divide-line">
         {estimate.items.map((it, i) => (

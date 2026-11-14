@@ -1,5 +1,7 @@
 import "server-only";
+import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getSupabaseAdmin, loadOwnAiProfile } from "@/lib/supabase/server";
 
 let client: OpenAI | null = null;
 
@@ -39,6 +41,66 @@ export function rateLimited(key: string, limit = 30, windowMs = 60_000) {
 
 export function clientKey(req: Request, userId?: string | null) {
   return userId ?? req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anon";
+}
+
+const DAILY_LIMITS = { nutrition: 120, coach: 30 } as const;
+
+/** Increments the UTC-day counter. Fails closed when the service-role key or migration is missing. */
+export async function consumeDailyQuota(userId: string, bucket: keyof typeof DAILY_LIMITS): Promise<"ok" | "limited" | "unconfigured"> {
+  const admin = getSupabaseAdmin();
+  if (!admin) return "unconfigured";
+  const { data, error } = await admin.rpc("consume_ai_quota", {
+    p_user: userId,
+    p_bucket: bucket,
+    p_limit: DAILY_LIMITS[bucket],
+  });
+  if (error || typeof data !== "boolean") {
+    console.error("ai quota error", error);
+    return "unconfigured";
+  }
+  return data ? "ok" : "limited";
+}
+
+export type CloudDecision =
+  | { mode: "offline"; note?: string }
+  | { mode: "cloud"; allergies: string; dietaryPreferences: string[] }
+  | { mode: "error"; status: number; error: string };
+
+/**
+ * Cloud AI requires a signed-in user, the account setting, and a durable daily cap.
+ * Anything else stays on the built-in estimator and does not call OpenAI.
+ */
+export async function resolveCloudAi(opts: {
+  req: Request;
+  userId: string | null;
+  requested: boolean;
+  bucket: keyof typeof DAILY_LIMITS;
+  hasAttachments: boolean;
+}): Promise<CloudDecision> {
+  const offlineNote = opts.hasAttachments ? "Photos and voice need cloud AI. This reply uses the built-in tools and those attachments were not sent." : undefined;
+  if (!opts.requested || !getOpenAI()) return { mode: "offline", note: opts.requested ? offlineNote : undefined };
+  if (!opts.userId) return { mode: "offline", note: offlineNote };
+
+  const profile = await loadOwnAiProfile(opts.req, opts.userId);
+  if (!profile) return { mode: "error", status: 503, error: "AI is unavailable until your profile can be read. Please try again." };
+  if (!profile.aiUsesHistory) return { mode: "offline", note: offlineNote };
+
+  const burst = opts.bucket === "nutrition" ? 15 : 6;
+  if (rateLimited(`${opts.bucket}:${opts.userId}`, burst, 60_000)) {
+    return { mode: "error", status: 429, error: "That's a lot of AI requests at once. Wait a minute and try again." };
+  }
+  const quota = await consumeDailyQuota(opts.userId, opts.bucket);
+  if (quota === "limited") {
+    return { mode: "error", status: 429, error: "You've reached today's AI limit. The built-in tools still work, and the limit resets tomorrow." };
+  }
+  if (quota === "unconfigured") {
+    return { mode: "error", status: 503, error: "AI is unavailable until server rate limiting is configured." };
+  }
+  return { mode: "cloud", allergies: profile.allergies, dietaryPreferences: profile.dietaryPreferences };
+}
+
+export function cloudError(decision: Extract<CloudDecision, { mode: "error" }>) {
+  return NextResponse.json({ error: decision.error }, { status: decision.status });
 }
 
 export type AiAttachment = { type: "image" | "audio"; dataUrl: string; name: string };

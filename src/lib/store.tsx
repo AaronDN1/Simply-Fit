@@ -1,7 +1,8 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { CardioEntry, DailyLog, FoodEntry, Profile, Snapshot, WorkoutLog } from "./types";
+import { defaultSettings, type CardioEntry, type DailyLog, type FoodEntry, type Profile, type Snapshot, type WorkoutLog } from "./types";
+import { ageBlockMessage, isEligibleAge } from "./legal";
 import type { DataAdapter } from "./data/adapter";
 import { createLocalAdapter, writeLocalSnapshot } from "./data/local";
 import { createSupabaseAdapter } from "./data/supabase";
@@ -40,13 +41,7 @@ const EMPTY: Snapshot = {
     intake: null,
     plan: null,
     split: null,
-    settings: {
-      units: { weight: "lb", height: "imperial" },
-      notifications: { dailyPlan: true, mealReminders: false, workoutReminders: true, weeklyReview: true },
-      privacy: { aiUsesHistory: true, productAnalytics: false },
-      health: { appleHealth: "not_connected", healthConnect: "not_connected", lastSyncAt: null },
-      savedMeals: [],
-    },
+    settings: structuredClone(defaultSettings),
     onboardedAt: null,
     createdAt: "",
   },
@@ -55,6 +50,10 @@ const EMPTY: Snapshot = {
   daily: [],
   workouts: [],
 };
+
+function assertHealthAge(profile: Profile) {
+  if (!isEligibleAge(profile.intake?.age)) throw new Error(ageBlockMessage());
+}
 
 export function emptyDaily(date: string): DailyLog {
   return { date, steps: null, stepsSource: null, sleepHours: null, sleepQuality: null, weightKg: null, readiness: null };
@@ -127,13 +126,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       data,
       updateProfile: async (patch) => {
         const p = { ...dataRef.current.profile, ...(typeof patch === "function" ? patch(dataRef.current.profile) : patch) };
+        if (p.intake && !isEligibleAge(p.intake.age)) throw new Error(ageBlockMessage());
         await mutate((s) => ({ ...s, profile: p }), (a) => a.saveProfile(p));
       },
-      saveFood: (e) => mutate((s) => ({ ...s, foods: upsert(s.foods, e) }), (a) => a.upsertFood(e)),
+      saveFood: (e) => {
+        assertHealthAge(dataRef.current.profile);
+        return mutate((s) => ({ ...s, foods: upsert(s.foods, e) }), (a) => a.upsertFood(e));
+      },
       deleteFood: (id) => mutate((s) => ({ ...s, foods: s.foods.filter((f) => f.id !== id) }), (a) => a.deleteFood(id)),
-      saveCardio: (e) => mutate((s) => ({ ...s, cardio: upsert(s.cardio, e) }), (a) => a.upsertCardio(e)),
+      saveCardio: (e) => {
+        assertHealthAge(dataRef.current.profile);
+        return mutate((s) => ({ ...s, cardio: upsert(s.cardio, e) }), (a) => a.upsertCardio(e));
+      },
       deleteCardio: (id) => mutate((s) => ({ ...s, cardio: s.cardio.filter((c) => c.id !== id) }), (a) => a.deleteCardio(id)),
       saveDaily: async (date, patch) => {
+        assertHealthAge(dataRef.current.profile);
         const cur = dataRef.current.daily.find((d) => d.date === date) ?? emptyDaily(date);
         const log = { ...cur, ...patch, date };
         await mutate(
@@ -141,7 +148,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           (a) => a.upsertDaily(log)
         );
       },
-      saveWorkout: (log) => mutate((s) => ({ ...s, workouts: upsert(s.workouts, log) }), (a) => a.upsertWorkout(log)),
+      saveWorkout: (log) => {
+        assertHealthAge(dataRef.current.profile);
+        return mutate((s) => ({ ...s, workouts: upsert(s.workouts, log) }), (a) => a.upsertWorkout(log));
+      },
       deleteWorkout: (id) => mutate((s) => ({ ...s, workouts: s.workouts.filter((w) => w.id !== id) }), (a) => a.deleteWorkout(id)),
       clearData: () => mutate((s) => ({ ...s, foods: [], cardio: [], daily: [], workouts: [] }), (a) => a.clearAll()),
       loadDemoData: async () => {

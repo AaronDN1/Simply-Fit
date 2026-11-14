@@ -192,6 +192,8 @@ export interface Settings {
     weeklyReview: boolean;
   };
   privacy: { aiUsesHistory: boolean; productAnalytics: boolean };
+  /** Set when the person accepts the current terms and privacy policy. */
+  legal: { acceptedAt: string | null; version: string | null };
   health: { appleHealth: HealthStatus; healthConnect: HealthStatus; lastSyncAt: string | null };
   savedMeals: SavedMeal[];
 }
@@ -220,6 +222,7 @@ export const defaultSettings: Settings = {
   units: { weight: "lb", height: "imperial" },
   notifications: { dailyPlan: true, mealReminders: false, workoutReminders: true, weeklyReview: true },
   privacy: { aiUsesHistory: true, productAnalytics: false },
+  legal: { acceptedAt: null, version: null },
   health: { appleHealth: "not_connected", healthConnect: "not_connected", lastSyncAt: null },
   savedMeals: [],
 };

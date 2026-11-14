@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowDown, ArrowUp, ChevronDown, Plus, RotateCcw, Search, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import { apiPost } from "@/lib/api";
 import type { PlannedExercise, Split, WorkoutDay } from "@/lib/types";
 import { BASIC_TEMPLATES, EXERCISES, plannedFrom, recommendedSplit, templateSplit, TOOLS_FOR } from "@/lib/workouts";
 import { cn, uid, weekdayIndex, todayISO, WEEKDAYS } from "@/lib/utils";
+import { AI_OFF_COPY, AI_ON_COPY } from "@/lib/legal";
 
 export function SplitEditor() {
   const { data, updateProfile } = useStore();
@@ -258,7 +260,7 @@ function ExercisePicker({ open, onClose, onPick, equipment }: { open: boolean; o
 }
 
 function AiSplitSheet({ open, onClose, current, onApply }: { open: boolean; onClose: () => void; current: Split; onApply: (s: Split) => Promise<void> | void }) {
-  const { data } = useStore();
+  const { data, mode } = useStore();
   const toast = useToast();
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<AiAttachment[]>([]);
@@ -267,9 +269,15 @@ function AiSplitSheet({ open, onClose, current, onApply }: { open: boolean; onCl
   const [result, setResult] = useState<{ reply: string; split: Split; engine: string } | null>(null);
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const intake = data.profile.intake!;
+  const wantsCloud = data.profile.settings.privacy.aiUsesHistory;
+  const cloud = wantsCloud && mode !== "demo";
 
   async function ask() {
     if (loading) return;
+    if (!cloud && attachments.length) {
+      toast("Turn on cloud AI in Settings to send a photo or voice note.", "error");
+      return;
+    }
     setLoading(true);
     const currentAttachments = attachments;
     setAttachments([]);
@@ -282,7 +290,6 @@ function AiSplitSheet({ open, onClose, current, onApply }: { open: boolean; onCl
         .join("\n");
       const res = await apiPost<{ reply: string; split: Split; engine: string }>("/api/ai/coach", {
         request: conversation.slice(-780),
-        attachments: currentAttachments,
         profile: {
           goal: intake.goal,
           experience: intake.experience,
@@ -292,6 +299,8 @@ function AiSplitSheet({ open, onClose, current, onApply }: { open: boolean; onCl
           sessionMinutes: intake.liftingSessionMinutes,
         },
         currentSplit: summary,
+        useCloud: cloud,
+        attachments: cloud ? currentAttachments : undefined,
       });
       setResult(res);
       setMessages((m) => [...m, { role: "user", content: userMessage }, { role: "assistant", content: res.reply }]);
@@ -328,7 +337,13 @@ function AiSplitSheet({ open, onClose, current, onApply }: { open: boolean; onCl
           </div>
         )}
         <Textarea value={text} onChange={(e) => setText(e.target.value)} placeholder={messages.length ? "Ask a follow-up, like “Can you detail today's exercises?”" : "e.g. 4 days a week, 45 minutes max, more focus on legs. I only have dumbbells on Fridays."} rows={3} />
-          <AiInputTools attachments={attachments} onChange={setAttachments} disabled={loading} />
+          {cloud && <AiInputTools attachments={attachments} onChange={setAttachments} disabled={loading} />}
+          <p className="text-[12px] leading-relaxed text-muted">
+            {mode === "demo" ? "This browser demo builds splits on this device and does not send them to OpenAI." : wantsCloud ? AI_ON_COPY : AI_OFF_COPY}{" "}
+            <Link href="/settings" className="font-medium text-ink underline-offset-4 hover:underline">
+              Settings
+            </Link>
+          </p>
           <div className="flex flex-wrap gap-1.5">
             {(messages.length ? ["Make the sessions shorter", "Detail today's exercises", "Add warm-up guidance", "Change the weekly schedule"] : ["Make it 4 days a week", "Shorter sessions, 45 minutes", "More upper-body focus", "I'm traveling — no gym this week"]).map((s) => (
               <button key={s} onClick={() => setText(s)} className="rounded-full border border-line px-3 py-1 text-[12px] text-ink-soft hover:border-line-strong">

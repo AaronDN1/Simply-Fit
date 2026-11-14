@@ -28,6 +28,28 @@ export function getSupabaseAdmin() {
   return createClient(SUPABASE_URL, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
+/** Profile fields the AI routes are allowed to use when cloud AI is on. */
+export async function loadOwnAiProfile(req: Request, userId: string) {
+  const header = req.headers.get("authorization");
+  const supabase =
+    header?.startsWith("Bearer ")
+      ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          auth: { persistSession: false },
+          global: { headers: { Authorization: header } },
+        })
+      : await getSupabaseServer();
+  if (!supabase) return null;
+  const { data, error } = await supabase.from("profiles").select("settings, intake").eq("id", userId).maybeSingle();
+  if (error || !data) return null;
+  const settings = (data.settings ?? {}) as { privacy?: { aiUsesHistory?: boolean } };
+  const intake = (data.intake ?? {}) as { dietaryPreferences?: unknown; allergies?: unknown };
+  return {
+    aiUsesHistory: settings.privacy?.aiUsesHistory !== false,
+    dietaryPreferences: Array.isArray(intake.dietaryPreferences) ? intake.dietaryPreferences.filter((item): item is string => typeof item === "string") : [],
+    allergies: typeof intake.allergies === "string" ? intake.allergies : "",
+  };
+}
+
 /**
  * Resolve the calling user from cookies or a Bearer token.
  * Returns `{ user: null, configured: false }` in local demo mode.

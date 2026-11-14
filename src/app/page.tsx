@@ -3,6 +3,7 @@ import { Logo } from "@/components/logo";
 import { ButtonLink } from "@/components/ui/button";
 import { LandingAuthAction } from "@/components/landing/auth-action";
 import { Hero } from "@/components/landing/hero";
+import { LegalLinks } from "@/components/legal/document";
 import { DashboardSection, FinalCta, HealthSection, HowItWorks, NutritionSection, PlansSection, ProgressSection } from "@/components/landing/sections";
 
 export default function LandingPage() {
@@ -48,13 +49,16 @@ export default function LandingPage() {
               eating-disorder concerns.
             </p>
           </div>
-          <div className="flex gap-6">
-            <Link href="/login" className="hover:text-ink">
-              Sign in
-            </Link>
-            <Link href="/signup" className="hover:text-ink">
-              Create account
-            </Link>
+          <div className="flex flex-col gap-3 sm:items-end">
+            <div className="flex gap-6">
+              <Link href="/login" className="hover:text-ink">
+                Sign in
+              </Link>
+              <Link href="/signup" className="hover:text-ink">
+                Create account
+              </Link>
+            </div>
+            <LegalLinks className="flex flex-wrap gap-4" />
           </div>
         </div>
       </footer>

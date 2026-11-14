@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { SAFETY_PRINCIPLES, clientKey, getOpenAI, modelOptions, prepareAiAttachments, rateLimited } from "@/lib/ai/server";
+import { SAFETY_PRINCIPLES, cloudError, getOpenAI, modelOptions, prepareAiAttachments, resolveCloudAi } from "@/lib/ai/server";
 import { getRequestUser } from "@/lib/supabase/server";
 import { estimateFromConversation, type EstimateResult } from "@/lib/foods";
 
@@ -16,6 +16,7 @@ const Body = z.object({
       localTime: z.string().optional(),
     })
     .optional(),
+  useCloud: z.boolean().optional(),
   attachments: z
     .array(z.object({ type: z.enum(["image", "audio"]), dataUrl: z.string().max(20_000_000), name: z.string().max(120) }))
     .max(3)
@@ -87,27 +88,45 @@ const AiResult = z.object({
 export async function POST(req: Request) {
   const auth = await getRequestUser(req);
   if (auth.configured && !auth.user) return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
-  if (rateLimited(clientKey(req, auth.user?.id))) return NextResponse.json({ error: "That's a lot of messages at once — try again in a minute." }, { status: 429 });
 
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
-  const { messages, context, attachments } = parsed.data;
+  const { messages, context, attachments, useCloud } = parsed.data;
 
-  const openai = getOpenAI();
-  if (!openai) {
+  const decision = await resolveCloudAi({
+    req,
+    userId: auth.user?.id ?? null,
+    requested: useCloud !== false,
+    bucket: "nutrition",
+    hasAttachments: Boolean(attachments?.length),
+  });
+  if (decision.mode !== "cloud") {
+    if (decision.mode === "error") return cloudError(decision);
     const fallback = estimateFromConversation(messages);
     return NextResponse.json({
       ...fallback,
-      reply: attachments?.length ? `${fallback.reply} Image and voice review becomes available when an OpenAI key is configured.` : fallback.reply,
+      reply: [fallback.reply, decision.note].filter(Boolean).join(" "),
       engine: "offline",
     });
   }
 
+  const openai = getOpenAI();
+  if (!openai) return NextResponse.json({ error: "AI is unavailable." }, { status: 503 });
+
   try {
     const prepared = await prepareAiAttachments(openai, attachments, "low");
-    const ctx = context
-      ? `Context: ${context.remainingCalories != null ? `${Math.round(context.remainingCalories)} kcal remaining today. ` : ""}${context.dietaryPreferences?.length ? `Preferences: ${context.dietaryPreferences.join(", ")}. ` : ""}${context.localTime ? `Local time ${context.localTime}.` : ""}`
-      : "";
+    const avoid = decision.allergies.trim();
+    const ctx = [
+      "Context:",
+      context?.remainingCalories != null ? `${Math.round(context.remainingCalories)} kcal remaining today.` : "",
+      decision.dietaryPreferences.length ? `Diet preferences: ${decision.dietaryPreferences.join(", ")}.` : "",
+      avoid
+        ? `Allergies and foods to avoid: ${avoid}. Do not suggest these foods. If the user says they ate one, still estimate it and say that it conflicts with a food they avoid.`
+        : "No allergies listed.",
+      context?.localTime ? `Local time ${context.localTime}.` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
     const userMessages = messages.map((message, index) => {
       if (index !== messages.length - 1 || (!prepared.images.length && !prepared.transcripts.length)) return message;
       return {

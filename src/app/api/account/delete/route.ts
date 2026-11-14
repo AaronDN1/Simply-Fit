@@ -8,7 +8,7 @@ export async function POST(req: Request) {
   if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const admin = getSupabaseAdmin();
-  if (!admin) return NextResponse.json({ error: "Account deletion isn't configured on this server. Contact support." }, { status: 501 });
+  if (!admin) return NextResponse.json({ error: "Account deletion isn't configured on this server yet." }, { status: 501 });
 
   const { error } = await admin.auth.admin.deleteUser(auth.user.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

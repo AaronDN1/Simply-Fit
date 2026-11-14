@@ -1,4 +1,5 @@
 import { Logo } from "@/components/logo";
+import { LegalLinks } from "@/components/legal/document";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -8,7 +9,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="flex flex-1 items-center justify-center py-10">
           <div className="w-full max-w-[380px]">{children}</div>
         </div>
-        <p className="text-center text-[12px] text-faint lg:text-left">General fitness guidance, not medical advice.</p>
+        <div className="flex flex-col items-center gap-2 text-center text-[12px] text-faint lg:items-start lg:text-left">
+          <p>General fitness guidance, not medical advice.</p>
+          <LegalLinks className="flex flex-wrap justify-center gap-3 lg:justify-start" />
+        </div>
       </div>
       <aside className="relative hidden overflow-hidden bg-accent-strong lg:block">
         <div className="absolute inset-0 flex flex-col justify-end p-14 text-canvas">

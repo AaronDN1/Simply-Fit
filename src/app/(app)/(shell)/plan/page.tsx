@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
@@ -31,6 +31,20 @@ function PlanView() {
     plan?.macrosCustomized ? { proteinG: plan.proteinG, carbsG: plan.carbsG, fatG: plan.fatG } : null
   );
   const [saving, setSaving] = useState(false);
+  const [assumptions, setAssumptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!welcome) return;
+    const raw = sessionStorage.getItem("simplyfit:assumptions");
+    if (!raw) return;
+    sessionStorage.removeItem("simplyfit:assumptions");
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) setAssumptions(parsed.filter((item) => typeof item === "string"));
+    } catch {
+      /* Ignore a malformed note from an older session. */
+    }
+  }, [welcome]);
 
   const basePreview = useMemo(() => buildPlan(intake!, draft, { units }), [intake, draft, units]);
   const preview = useMemo(
@@ -83,6 +97,13 @@ function PlanView() {
                 <Sparkles className="size-4" /> Your plan is ready
               </p>
               <p className="mt-1 text-[15px] text-[#e3eee7]">Here's what we recommend and why. Adjust anything that doesn't fit — then start your day.</p>
+              {assumptions.length > 0 && (
+                <ul className="mt-3 max-w-lg list-disc space-y-1 pl-4 text-[13px] leading-relaxed text-[#d5e6dc]">
+                  {assumptions.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              )}
             </div>
             <Button className="bg-canvas text-ink hover:bg-white" onClick={() => router.push("/today")}>
               Start today <ArrowRight className="size-4" />

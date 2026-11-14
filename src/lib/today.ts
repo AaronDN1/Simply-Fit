@@ -71,7 +71,7 @@ export function todayPlan(data: Snapshot, date: string, now = new Date()) {
   actions.push({
     key: "steps",
     title: `${plan.levers.stepTarget.toLocaleString()} steps`,
-    detail: steps ? `${steps.toLocaleString()} so far · ${Math.max(0, plan.levers.stepTarget - steps).toLocaleString()} to go` : "Log or sync your steps",
+    detail: steps ? `${steps.toLocaleString()} so far · ${Math.max(0, plan.levers.stepTarget - steps).toLocaleString()} to go` : "Log today's steps",
     done: steps >= plan.levers.stepTarget,
     href: "/activity#steps",
   });
