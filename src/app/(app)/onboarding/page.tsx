@@ -1,20 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, motion } from "motion/react";
-import { ArrowLeft, ArrowRight, Dumbbell, HeartPulse, Leaf, Mountain, Scale, Sparkles, Target, TrendingDown, TrendingUp } from "lucide-react";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
+import { ArrowLeft, ArrowRight, CalendarDays, Dumbbell, HeartPulse, Leaf, Mountain, Scale, Sparkles, Target, Timer, TrendingDown, TrendingUp, Utensils, Zap } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { DayScale, DietPicks, Instrument, InstrumentRow, MealRhythm, PaceCards, ScaleSlider } from "@/components/app/intake-ui";
 import { Button } from "@/components/ui/button";
-import { Choices, Field, Input, Segmented, Slider, Textarea, UnitInput } from "@/components/ui/field";
+import { Choices, Field, Input, Segmented, Textarea } from "@/components/ui/field";
 import { useStore } from "@/lib/store";
 import type { Goal, Intake, Plan, Priority, Settings } from "@/lib/types";
-import { cmToFtIn, ftInToCm, kgToLb, lbToKg } from "@/lib/units";
+import { kgToLb, lbToKg } from "@/lib/units";
 import { ageBlockMessage, isEligibleAge } from "@/lib/legal";
 import { GOAL_LABEL, generatePlan, rateBounds } from "@/lib/plan";
 import { recommendedSplit, EQUIPMENT_LABEL } from "@/lib/workouts";
 import { useToast } from "@/components/ui/toast";
-import { cn } from "@/lib/utils";
 
 type Draft = Omit<Intake, "age" | "heightCm" | "weightKg"> & { age: number | ""; heightCm: number | ""; weightKg: number | "" };
 
@@ -75,24 +75,28 @@ export default function OnboardingPage() {
   const [building, setBuilding] = useState(false);
   const [skipped, setSkipped] = useState<Set<string>>(() => new Set());
   const [readyPlan, setReadyPlan] = useState<Plan | null>(null);
+  const buildRef = useRef<{ key: string; promise: Promise<Plan>; done?: Plan } | null>(null);
+  const buildQueue = useRef(Promise.resolve());
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((s) => ({ ...s, [k]: v }));
   const toggle = <T extends string>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
-  function validate() {
+  function validate(draft: Draft) {
     if (step === 1) {
-      if (d.age !== "" && d.age < 16) return "Simply Fit is for people 16 and older, so we can't build a plan or store health data for this age.";
-      if (!d.age || d.age > 90) return "Enter an age between 16 and 90.";
-      if (!d.heightCm || d.heightCm < 120 || d.heightCm > 230) return "Enter your height.";
-      if (!d.weightKg || d.weightKg < 35 || d.weightKg > 300) return "Enter your current weight.";
+      if (draft.age !== "" && draft.age < 16) return "Simply Fit is for people 16 and older, so we can't build a plan or store health data for this age.";
+      if (!draft.age || draft.age > 90) return "Enter an age between 16 and 90.";
+      if (!draft.heightCm || draft.heightCm < 120 || draft.heightCm > 230) return "Enter your height.";
+      if (!draft.weightKg || draft.weightKg < 35 || draft.weightKg > 300) return "Enter your current weight.";
     }
-    if (step === 0 && d.goal === "custom" && !d.customGoal.trim()) return "Tell us a little about your goal, or pick one above.";
+    if (step === 0 && draft.goal === "custom" && !draft.customGoal.trim()) return "Tell us a little about your goal, or pick one above.";
     return null;
   }
 
   function go(delta: number, skip = false) {
+    const draft = step === 1 && delta > 0 && !skip ? commitBody(d) : d;
+    if (draft !== d) setD(draft);
     if (delta > 0 && !skip) {
-      const e = validate();
+      const e = validate(draft);
       if (e) return setError(e);
       setSkipped((current) => {
         const next = new Set(current);
@@ -107,22 +111,58 @@ export default function OnboardingPage() {
     setStep((s) => Math.max(0, s + delta));
   }
 
+  function queueBuild(draft: Draft) {
+    const key = JSON.stringify({ draft, units });
+    if (buildRef.current?.key === key) return buildRef.current.promise;
+    const job = buildQueue.current.then(async () => {
+      const committed = commitBody(draft);
+      const intake: Intake = { ...committed, age: Number(committed.age), heightCm: Number(committed.heightCm), weightKg: Number(committed.weightKg) };
+      if (!isEligibleAge(intake.age)) throw new Error(ageBlockMessage());
+      const plan = generatePlan(intake, units);
+      const split = recommendedSplit(intake, plan.levers.liftingDays);
+      await updateProfile((p) => ({ intake, plan, split, settings: { ...p.settings, units }, onboardedAt: p.onboardedAt ?? new Date().toISOString() }));
+      return plan;
+    });
+    buildQueue.current = job.then(
+      () => undefined,
+      () => undefined
+    );
+    const entry = { key, promise: job };
+    buildRef.current = entry;
+    job.then((plan) => {
+      if (buildRef.current === entry) buildRef.current = { ...entry, done: plan };
+    }).catch(() => {
+      if (buildRef.current === entry) buildRef.current = null;
+    });
+    return job;
+  }
+
+  useEffect(() => {
+    if (step !== STEPS.length - 1) return;
+    queueBuild(d).catch(() => undefined);
+  }, [step, d, units]);
+
   async function finish() {
-    const intake: Intake = { ...d, age: Number(d.age), heightCm: Number(d.heightCm), weightKg: Number(d.weightKg) };
-    if (!isEligibleAge(intake.age)) {
+    const draft = commitBody(d);
+    if (draft !== d) setD(draft);
+    if (!isEligibleAge(Number(draft.age))) {
       setError(ageBlockMessage());
+      return;
+    }
+    const key = JSON.stringify({ draft, units });
+    const ready = buildRef.current?.key === key ? buildRef.current.done : undefined;
+    if (ready) {
+      setReadyPlan(ready);
       return;
     }
     setBuilding(true);
     try {
-      const plan = generatePlan(intake, units);
-      const split = recommendedSplit(intake, plan.levers.liftingDays);
-      await Promise.all([updateProfile((p) => ({ intake, plan, split, settings: { ...p.settings, units }, onboardedAt: new Date().toISOString() })), new Promise((r) => setTimeout(r, 1400))]);
+      const plan = await (buildRef.current?.key === key ? buildRef.current.promise : queueBuild(draft));
       setReadyPlan(plan);
-      setBuilding(false);
     } catch (e) {
-      setBuilding(false);
       toast(e instanceof Error ? e.message : "Couldn't save your plan.", "error");
+    } finally {
+      setBuilding(false);
     }
   }
 
@@ -140,6 +180,7 @@ export default function OnboardingPage() {
   if (readyPlan) return <PlanReveal plan={readyPlan} lines={assumptionLines(skipped, d)} goal={GOAL_LABEL[d.goal]} onContinue={continueToPlan} />;
 
   return (
+    <MotionConfig reducedMotion="never">
     <div className="flex min-h-[100svh] flex-col">
       <header className="mx-auto flex w-full max-w-2xl items-center justify-between px-5 pt-5">
         <Logo href="#" />
@@ -172,7 +213,7 @@ export default function OnboardingPage() {
             <div className="mt-8 space-y-7">
               {step === 0 && (
                 <>
-                  <Choices options={GOALS} value={d.goal} onChange={(v) => set("goal", v)} />
+                  <Choices stagger options={GOALS} value={d.goal} onChange={(v) => set("goal", v)} />
                   {d.goal === "custom" && (
                     <Field label="Describe your goal">
                       <Input value={d.customGoal} onChange={(e) => set("customGoal", e.target.value)} placeholder="e.g. Hike Kilimanjaro next summer" autoFocus />
@@ -203,20 +244,50 @@ export default function OnboardingPage() {
                       ]}
                     />
                   </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field label="Age">
-                      <UnitInput value={d.age} onChange={(v) => set("age", v)} unit="yrs" placeholder="22" />
-                    </Field>
-                    <HeightInput cm={d.heightCm} metric={units.height === "metric"} onChange={(v) => set("heightCm", v)} />
-                    <Field label="Current weight">
-                      <WeightInput kg={d.weightKg} unit={units.weight} onChange={(v) => set("weightKg", v)} />
-                    </Field>
-                    <Field label="Goal weight" hint="Optional">
-                      <WeightInput kg={d.goalWeightKg ?? ""} unit={units.weight} onChange={(v) => set("goalWeightKg", v === "" ? null : v)} />
-                    </Field>
-                  </div>
+                  <Instrument>
+                    <InstrumentRow>
+                      <ScaleSlider
+                        label="Age"
+                        value={num(d.age, 28)}
+                        display={`${Math.round(num(d.age, 28))} yrs`}
+                        min={16}
+                        max={90}
+                        onChange={(v) => set("age", v)}
+                        ticks={[
+                          { value: 16, label: "16" },
+                          { value: 30, label: "30" },
+                          { value: 45, label: "45" },
+                          { value: 60, label: "60" },
+                          { value: 75, label: "75" },
+                          { value: 90, label: "90" },
+                        ]}
+                      />
+                    </InstrumentRow>
+                    <InstrumentRow>
+                      <HeightScale cm={d.heightCm} metric={units.height === "metric"} onChange={(v) => set("heightCm", v)} />
+                    </InstrumentRow>
+                    <InstrumentRow>
+                      <WeightScale label="Current weight" kg={d.weightKg} unit={units.weight} onChange={(v) => set("weightKg", v)} />
+                    </InstrumentRow>
+                    <InstrumentRow>
+                      <WeightScale
+                        label="Goal weight"
+                        hint={d.goalWeightKg == null ? "Optional — drag to set a target" : "Optional"}
+                        kg={d.goalWeightKg ?? d.weightKg}
+                        empty={d.goalWeightKg == null}
+                        unit={units.weight}
+                        onChange={(v) => set("goalWeightKg", v === "" ? null : v)}
+                      />
+                      {d.goalWeightKg != null && (
+                        <button type="button" onClick={() => set("goalWeightKg", null)} className="mt-1 text-[13px] font-medium text-muted hover:text-ink">
+                          Clear goal weight
+                        </button>
+                      )}
+                    </InstrumentRow>
+                  </Instrument>
                   <Field label="Sex" hint="Optional — slightly improves the energy estimate.">
                     <Choices
+                      stagger
                       columns={3}
                       size="sm"
                       value={d.sex}
@@ -235,6 +306,7 @@ export default function OnboardingPage() {
                 <>
                   <Field label="Lifting experience">
                     <Choices
+                      stagger
                       columns={3}
                       size="sm"
                       value={d.experience}
@@ -246,16 +318,29 @@ export default function OnboardingPage() {
                       ]}
                     />
                   </Field>
-                  <Stepper label="Lifting days per week" value={d.liftingDaysPerWeek} min={0} max={7} onChange={(v) => set("liftingDaysPerWeek", v)} suffix={d.liftingDaysPerWeek === 7 ? "every day" : "days"} />
-                  <Field label="Typical session length">
-                    <Segmented
-                      value={String(d.liftingSessionMinutes) as "30"}
-                      onChange={(v) => set("liftingSessionMinutes", Number(v))}
-                      options={["30", "45", "60", "75", "90"].map((v) => ({ value: v as "30", label: `${v}m` }))}
-                    />
-                  </Field>
+                  <Instrument>
+                    <InstrumentRow>
+                      <DayScale value={d.liftingDaysPerWeek} onChange={(v) => set("liftingDaysPerWeek", v)} />
+                    </InstrumentRow>
+                    <InstrumentRow>
+                      <ScaleSlider
+                        label="Typical session"
+                        value={d.liftingSessionMinutes}
+                        display={`${d.liftingSessionMinutes} min`}
+                        min={30}
+                        max={90}
+                        step={5}
+                        onChange={(v) => set("liftingSessionMinutes", v)}
+                        ticks={[
+                          { value: 30, label: "30" },
+                          { value: 90, label: "90" },
+                        ]}
+                      />
+                    </InstrumentRow>
+                  </Instrument>
                   <Field label="Training style you enjoy">
                     <Choices
+                      stagger
                       size="sm"
                       value={d.trainingStyle}
                       onChange={(v) => set("trainingStyle", v)}
@@ -269,6 +354,7 @@ export default function OnboardingPage() {
                   </Field>
                   <Field label="Equipment you have">
                     <Choices
+                      stagger
                       size="sm"
                       value={d.equipment}
                       onChange={(v) => set("equipment", v)}
@@ -280,35 +366,64 @@ export default function OnboardingPage() {
 
               {step === 3 && (
                 <>
-                  <RangeField
-                    label="Cardio per week"
-                    value={d.cardioMinutesPerWeek}
-                    display={d.cardioMinutesPerWeek === 0 ? "None" : `${d.cardioMinutesPerWeek} min · ~${Math.round(d.cardioMinutesPerWeek / 7)}/day`}
-                    min={0}
-                    max={420}
-                    step={10}
-                    onChange={(v) => set("cardioMinutesPerWeek", v)}
-                  />
-                  <RangeField
-                    label="Average daily steps"
-                    value={d.averageSteps}
-                    display={d.averageSteps.toLocaleString()}
-                    min={1000}
-                    max={20000}
-                    step={500}
-                    onChange={(v) => set("averageSteps", v)}
-                  />
-                  <RangeField
-                    label="Average sleep"
-                    value={d.sleepHours}
-                    display={`${Math.floor(d.sleepHours)}h ${Math.round((d.sleepHours % 1) * 60)}m`}
-                    min={4}
-                    max={10}
-                    step={0.25}
-                    onChange={(v) => set("sleepHours", v)}
-                  />
+                  <Instrument>
+                    <InstrumentRow>
+                      <ScaleSlider
+                        label="Cardio per week"
+                        value={d.cardioMinutesPerWeek}
+                        display={d.cardioMinutesPerWeek === 0 ? "None" : `${d.cardioMinutesPerWeek} min`}
+                        hint={d.cardioMinutesPerWeek === 0 ? undefined : `About ${Math.round(d.cardioMinutesPerWeek / 7)} min a day`}
+                        min={0}
+                        max={420}
+                        step={10}
+                        onChange={(v) => set("cardioMinutesPerWeek", v)}
+                        ticks={[
+                          { value: 0, label: "0" },
+                          { value: 120, label: "2h" },
+                          { value: 240, label: "4h" },
+                          { value: 420, label: "7h" },
+                        ]}
+                      />
+                    </InstrumentRow>
+                    <InstrumentRow>
+                      <ScaleSlider
+                        label="Average daily steps"
+                        value={d.averageSteps}
+                        display={d.averageSteps.toLocaleString()}
+                        min={1000}
+                        max={20000}
+                        step={500}
+                        onChange={(v) => set("averageSteps", v)}
+                        ticks={[
+                          { value: 1000, label: "1k" },
+                          { value: 5000, label: "5k" },
+                          { value: 10000, label: "10k" },
+                          { value: 15000, label: "15k" },
+                          { value: 20000, label: "20k" },
+                        ]}
+                      />
+                    </InstrumentRow>
+                    <InstrumentRow>
+                      <ScaleSlider
+                        label="Average sleep"
+                        value={d.sleepHours}
+                        display={sleepLabel(d.sleepHours)}
+                        min={4}
+                        max={10}
+                        step={0.25}
+                        onChange={(v) => set("sleepHours", v)}
+                        ticks={[
+                          { value: 4, label: "4h" },
+                          { value: 6, label: "6h" },
+                          { value: 8, label: "8h" },
+                          { value: 10, label: "10h" },
+                        ]}
+                      />
+                    </InstrumentRow>
+                  </Instrument>
                   <Field label="Outside of workouts, your day is mostly…">
                     <Choices
+                      stagger
                       size="sm"
                       value={d.activityLevel}
                       onChange={(v) => set("activityLevel", v)}
@@ -326,37 +441,13 @@ export default function OnboardingPage() {
               {step === 4 && (
                 <>
                   <Field label="Food preferences" hint="Select any that apply.">
-                    <div className="flex flex-wrap gap-2">
-                      {DIETS.map((x) => {
-                        const on = d.dietaryPreferences.includes(x);
-                        return (
-                          <button
-                            key={x}
-                            type="button"
-                            onClick={() => set("dietaryPreferences", toggle(d.dietaryPreferences, x))}
-                            className={cn("rounded-full border px-3.5 py-1.5 text-sm transition-colors", on ? "border-accent bg-accent-tint text-accent-strong" : "border-line bg-surface text-ink-soft hover:border-line-strong")}
-                          >
-                            {x}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <DietPicks options={DIETS} value={d.dietaryPreferences} onToggle={(x) => set("dietaryPreferences", toggle(d.dietaryPreferences, x))} />
                   </Field>
                   <Field label="Allergies or foods you avoid" hint="Optional">
                     <Textarea value={d.allergies} onChange={(e) => set("allergies", e.target.value)} placeholder="e.g. peanuts, shellfish" rows={2} />
                   </Field>
                   <Field label="Meal rhythm">
-                    <Choices
-                      size="sm"
-                      value={d.mealStructure}
-                      onChange={(v) => set("mealStructure", v)}
-                      options={[
-                        { value: "three_meals", label: "Three meals" },
-                        { value: "three_plus_snacks", label: "Meals + snacks" },
-                        { value: "two_meals", label: "Two bigger meals" },
-                        { value: "flexible", label: "It varies" },
-                      ]}
-                    />
+                    <MealRhythm value={d.mealStructure} onChange={(v) => set("mealStructure", v)} />
                   </Field>
                 </>
               )}
@@ -402,6 +493,7 @@ export default function OnboardingPage() {
         </div>
       </footer>
     </div>
+    </MotionConfig>
   );
 }
 
@@ -437,28 +529,26 @@ function PaceStep({
     ? options.reduce((best, o) => (Math.abs(o.value - d.weeklyRateKg) < Math.abs(best.value - d.weeklyRateKg) ? o : best), options[1])
     : options[1];
 
-  const PRIORITIES: { value: Priority; label: string; description: string }[] = [
-    { value: "more_food", label: "More food", description: "I'd rather walk more than eat less" },
-    { value: "less_cardio", label: "Less cardio", description: "Keep cardio light" },
-    { value: "fewer_days", label: "Fewer training days", description: "My schedule is tight" },
-    { value: "faster", label: "Faster results", description: "I'm okay with a tougher plan" },
+  const PRIORITIES: { value: Priority; label: string; description: string; icon: React.ReactNode }[] = [
+    { value: "more_food", label: "More food", description: "I'd rather walk more than eat less", icon: <Utensils className="size-4" /> },
+    { value: "less_cardio", label: "Less cardio", description: "Keep cardio light", icon: <Timer className="size-4" /> },
+    { value: "fewer_days", label: "Fewer training days", description: "My schedule is tight", icon: <CalendarDays className="size-4" /> },
+    { value: "faster", label: "Faster results", description: "I'm okay with a tougher plan", icon: <Zap className="size-4" /> },
   ];
 
   return (
     <>
       {directional && (
         <Field label={d.goal === "fat_loss" ? "How quickly would you like to lose weight?" : "How quickly would you like to gain?"}>
-          <Choices
-            columns={3}
-            size="sm"
+          <PaceCards
             value={selected.label}
             onChange={(label) => set("weeklyRateKg", options.find((o) => o.label === label)!.value)}
-            options={options.map((o) => ({ value: o.label, label: o.label, description: `${fmt(o.value)} · ${o.description}` }))}
+            options={options.map((o) => ({ id: o.label, label: o.label, figure: fmt(o.value), description: o.description }))}
           />
         </Field>
       )}
       <Field label="What matters most to you?" hint="Optional — choose any.">
-        <Choices multiple value={d.priorities} onChange={(v) => set("priorities", toggle(d.priorities, v))} options={PRIORITIES} />
+        <Choices stagger multiple value={d.priorities} onChange={(v) => set("priorities", toggle(d.priorities, v))} options={PRIORITIES} />
       </Field>
       <p className="rounded-2xl bg-sunken/70 px-4 py-3 text-[13px] leading-relaxed text-muted">
         Simply Fit gives general fitness and nutrition guidance, not medical advice. If you're pregnant, managing a medical condition, or have a history of disordered
@@ -468,65 +558,102 @@ function PaceStep({
   );
 }
 
-function Stepper({ label, value, min, max, onChange, suffix }: { label: string; value: number; min: number; max: number; onChange: (v: number) => void; suffix: string }) {
-  return (
-    <div>
-      <span className="mb-1.5 block text-[13px] font-medium text-ink-soft">{label}</span>
-      <div className="flex items-center gap-3">
-        <div className="flex gap-1.5">
-          {Array.from({ length: max - min + 1 }, (_, i) => i + min).map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => onChange(n)}
-              aria-pressed={n === value}
-              className={cn(
-                "grid size-9 place-items-center rounded-xl border sm:size-10 text-[15px] font-medium tabular transition-colors",
-                n === value ? "border-accent bg-accent text-white" : "border-line bg-surface text-ink-soft hover:border-line-strong"
-              )}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
-        <span className="hidden text-sm text-muted sm:inline">{suffix}</span>
-      </div>
-    </div>
-  );
+function num(value: number | "" | null, fallback: number) {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
-function RangeField({ label, value, display, min, max, step, onChange }: { label: string; value: number; display: string; min: number; max: number; step: number; onChange: (v: number) => void }) {
-  return (
-    <div>
-      <div className="mb-1 flex items-baseline justify-between">
-        <span className="text-[13px] font-medium text-ink-soft">{label}</span>
-        <span className="text-[15px] font-medium tabular">{display}</span>
-      </div>
-      <Slider ariaLabel={label} value={value} min={min} max={max} step={step} onChange={onChange} />
-    </div>
-  );
+function commitBody(draft: Draft): Draft {
+  if (draft.age !== "" && draft.heightCm !== "" && draft.weightKg !== "") return draft;
+  return {
+    ...draft,
+    age: num(draft.age, 28),
+    heightCm: num(draft.heightCm, 175),
+    weightKg: num(draft.weightKg, 77),
+  };
 }
 
-function WeightInput({ kg, unit, onChange }: { kg: number | ""; unit: "lb" | "kg"; onChange: (kg: number | "") => void }) {
-  const shown = kg === "" ? "" : Math.round((unit === "lb" ? kgToLb(kg) : kg) * 10) / 10;
-  return <UnitInput value={shown} unit={unit} placeholder={unit === "lb" ? "170" : "77"} onChange={(v) => onChange(v === "" ? "" : unit === "lb" ? lbToKg(v) : v)} />;
+function sleepLabel(hours: number) {
+  const h = Math.floor(hours);
+  const m = Math.round((hours % 1) * 60);
+  return m ? `${h}h ${m}m` : `${h}h`;
 }
 
-function HeightInput({ cm, metric, onChange }: { cm: number | ""; metric: boolean; onChange: (cm: number | "") => void }) {
-  if (metric)
+function feetLabel(totalInches: number) {
+  const ft = Math.floor(totalInches / 12);
+  const inches = totalInches % 12;
+  return `${ft}′${inches}″`;
+}
+
+function HeightScale({ cm, metric, onChange }: { cm: number | ""; metric: boolean; onChange: (cm: number) => void }) {
+  if (metric) {
+    const value = Math.round(num(cm, 175));
     return (
-      <Field label="Height">
-        <UnitInput value={cm === "" ? "" : Math.round(cm)} unit="cm" placeholder="183" onChange={onChange} />
-      </Field>
+      <ScaleSlider
+        label="Height"
+        value={value}
+        display={`${value} cm`}
+        min={120}
+        max={230}
+        onChange={onChange}
+        ticks={[
+          { value: 120, label: "120" },
+          { value: 160, label: "160" },
+          { value: 190, label: "190" },
+          { value: 230, label: "230" },
+        ]}
+      />
     );
-  const { ft, inches } = cm === "" ? { ft: "" as const, inches: "" as const } : cmToFtIn(cm);
+  }
+  const inches = Math.round(num(cm, 175) / 2.54);
   return (
-    <Field label="Height">
-      <div className="grid grid-cols-2 gap-2">
-        <UnitInput ariaLabel="Feet" value={ft} unit="ft" placeholder="6" onChange={(v) => onChange(v === "" ? "" : ftInToCm(v, inches === "" ? 0 : inches))} />
-        <UnitInput ariaLabel="Inches" value={inches} unit="in" placeholder="0" onChange={(v) => onChange(ftInToCm(ft === "" ? 5 : ft, v === "" ? 0 : v))} />
-      </div>
-    </Field>
+    <ScaleSlider
+      label="Height"
+      value={inches}
+      display={feetLabel(inches)}
+      min={48}
+      max={90}
+      onChange={(v) => onChange(Math.round(v * 2.54))}
+      ticks={[
+        { value: 48, label: "4′" },
+        { value: 60, label: "5′" },
+        { value: 72, label: "6′" },
+        { value: 84, label: "7′" },
+        { value: 90, label: "7′6″" },
+      ]}
+    />
+  );
+}
+
+function WeightScale({
+  label,
+  hint,
+  kg,
+  unit,
+  empty,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  kg: number | "" | null;
+  unit: "lb" | "kg";
+  empty?: boolean;
+  onChange: (kg: number | "") => void;
+}) {
+  const lb = unit === "lb";
+  const fallback = lb ? 170 : 77;
+  const shown = Math.round(num(kg === "" || kg == null ? "" : lb ? kgToLb(kg) : kg, fallback));
+  return (
+    <ScaleSlider
+      label={label}
+      hint={hint}
+      muted={empty}
+      value={shown}
+      display={empty ? "None" : `${shown} ${unit}`}
+      min={lb ? 90 : 40}
+      max={lb ? 400 : 180}
+      onChange={(v) => onChange(lb ? lbToKg(v) : v)}
+      ticks={(lb ? [90, 160, 230, 300, 400] : [40, 80, 120, 160, 180]).map((n) => ({ value: n, label: String(n) }))}
+    />
   );
 }
 
@@ -605,7 +732,7 @@ function Building() {
   return (
     <div className="grid min-h-[100svh] place-items-center px-6">
       <div className="w-full max-w-sm">
-        <motion.div animate={{ rotate: 360 }} transition={{ duration: 6, repeat: Infinity, ease: "linear" }} className="mb-8 size-12 rounded-full border-2 border-accent-soft border-t-accent" />
+        <div className="sf-spin mb-8 size-12 rounded-full border-2 border-accent-soft border-t-accent" />
         <h1 className="font-display text-[36px] leading-tight">Building your plan</h1>
         <ul className="mt-6 space-y-3">
           {lines.map((l, i) => (

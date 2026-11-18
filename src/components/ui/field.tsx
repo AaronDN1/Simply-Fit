@@ -77,6 +77,7 @@ export function Choices<T extends string>({
   multiple,
   columns = 2,
   size = "md",
+  stagger = false,
 }: {
   options: ChoiceOption<T>[];
   value: T | T[] | null;
@@ -84,22 +85,23 @@ export function Choices<T extends string>({
   multiple?: boolean;
   columns?: 1 | 2 | 3 | 4;
   size?: "sm" | "md";
+  /** Each option springs in, one after another. */
+  stagger?: boolean;
 }) {
   const selected = (v: T) => (Array.isArray(value) ? value.includes(v) : value === v);
   const cols = { 1: "grid-cols-1", 2: "grid-cols-1 sm:grid-cols-2", 3: "grid-cols-2 sm:grid-cols-3", 4: "grid-cols-2 sm:grid-cols-4" }[columns];
   return (
     <div className={cn("grid gap-2", cols)} role={multiple ? "group" : "radiogroup"}>
-      {options.map((o) => {
+      {options.map((o, i) => {
         const on = selected(o.value);
-        return (
+        const button = (
           <button
-            key={o.value}
             type="button"
             role={multiple ? "checkbox" : "radio"}
             aria-checked={on}
             onClick={() => onChange(o.value)}
             className={cn(
-              "group relative flex items-start gap-3 rounded-2xl border text-left transition-colors",
+              "group relative flex h-full w-full items-start gap-3 rounded-2xl border text-left transition-colors",
               size === "sm" ? "px-3.5 py-2.5" : "px-4 py-3.5",
               on ? "border-accent bg-accent-tint" : "border-line bg-surface hover:border-line-strong"
             )}
@@ -123,6 +125,18 @@ export function Choices<T extends string>({
               )}
             </span>
           </button>
+        );
+        if (!stagger) return <div key={o.value}>{button}</div>;
+        return (
+          <motion.div
+            key={o.value}
+            className="min-w-0"
+            initial={{ opacity: 0, y: 14, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ type: "spring", stiffness: 480, damping: 32, mass: 0.7, delay: 0.06 + i * 0.055 }}
+          >
+            {button}
+          </motion.div>
         );
       })}
     </div>
@@ -174,6 +188,7 @@ export function Slider({
   max,
   step = 1,
   ariaLabel,
+  className,
 }: {
   value: number;
   onChange: (v: number) => void;
@@ -181,12 +196,13 @@ export function Slider({
   max: number;
   step?: number;
   ariaLabel: string;
+  className?: string;
 }) {
   const pct = ((value - min) / (max - min)) * 100;
   return (
     <input
       type="range"
-      className="sf-range"
+      className={cn("sf-range", className)}
       aria-label={ariaLabel}
       min={min}
       max={max}

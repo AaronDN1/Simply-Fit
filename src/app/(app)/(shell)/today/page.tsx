@@ -123,7 +123,7 @@ export default function TodayPage() {
 
   return (
     <div>
-      <header className="mb-6 sm:mb-8">
+      <header className="mb-5">
         <p className="text-[13px] font-medium text-muted">{formatDay(date)}</p>
         <h1 className="mt-1 font-display text-[36px] leading-[1.05] tracking-tight sm:text-[44px]">
           {greeting(now)}
@@ -131,8 +131,8 @@ export default function TodayPage() {
         </h1>
       </header>
 
-      <div className="space-y-4">
-        {/* Today's plan */}
+      <div className="grid items-start gap-4 lg:grid-cols-2 lg:items-stretch">
+        {/* Today's plan sits beside nutrition so both read in one glance. */}
         <Card className="overflow-hidden">
           <div className="bg-ink p-5 text-canvas sm:p-6">
             <div className="flex items-start justify-between gap-4">
@@ -181,19 +181,20 @@ export default function TodayPage() {
           </ul>
         </Card>
 
-        {/* Nutrition */}
-        <Link href="/nutrition" className="group block">
-          <Card className="h-full p-5 transition-shadow group-hover:shadow-[var(--shadow-lift)] sm:p-6">
+        <div className="lg:relative lg:h-full">
+        <div className="flex flex-col gap-3 lg:absolute lg:inset-0">
+        <Link href="/nutrition" className="group block shrink-0">
+          <Card className="p-5 transition-shadow group-hover:shadow-[var(--shadow-lift)] sm:p-6">
             <div className="flex items-center justify-between">
               <p className="text-[15px] font-semibold tracking-tight">Nutrition</p>
               <span className="text-[13px] text-muted">
                 {t.totals.meals} meal{t.totals.meals === 1 ? "" : "s"} logged
               </span>
             </div>
-            <div className="mt-5 flex items-center gap-5">
-              <Ring value={t.totals.calories / plan.calorieTarget} size={124} stroke={10} color={t.totals.calories > plan.calorieTarget * 1.05 ? "var(--color-honey)" : "var(--color-accent)"}>
+            <div className="mt-5 flex items-center gap-4 sm:gap-5">
+              <Ring value={t.totals.calories / plan.calorieTarget} size={112} stroke={10} color={t.totals.calories > plan.calorieTarget * 1.05 ? "var(--color-honey)" : "var(--color-accent)"}>
                 <div className="text-center">
-                  <p className="text-[26px] font-semibold leading-none tracking-tight">
+                  <p className="text-[24px] font-semibold leading-none tracking-tight">
                     <AnimatedNumber value={Math.abs(Math.round(t.remaining))} />
                   </p>
                   <p className="mt-1 text-[11px] text-muted">{t.remaining >= 0 ? "kcal left" : "kcal over"}</p>
@@ -205,7 +206,7 @@ export default function TodayPage() {
                 <Macro label="Fat" value={t.totals.fatG} target={plan.fatG} color="bg-clay" />
               </div>
             </div>
-            <div className="mt-5 flex items-center justify-between rounded-2xl bg-canvas px-4 py-3 text-[14px]">
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-2xl bg-canvas px-4 py-3 text-[14px]">
               <span className="text-ink-soft">
                 <AnimatedNumber value={Math.round(t.totals.calories)} /> of {plan.calorieTarget.toLocaleString()} kcal eaten
               </span>
@@ -215,39 +216,45 @@ export default function TodayPage() {
             </div>
           </Card>
         </Link>
-      </div>
 
-      {/* Essentials */}
-      <h2 className="mb-1 mt-8 text-[15px] font-semibold tracking-tight">At a glance</h2>
-      <p className="mb-3 max-w-xl text-[13px] leading-relaxed text-muted">These are details. The step at the top is the one to do next.</p>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:gap-4">
+        <div className="flex min-h-0 flex-1 flex-col">
+          <h2 className="mb-2 shrink-0 text-[15px] font-semibold tracking-tight">At a glance</h2>
+          <div className="grid min-h-0 flex-1 grid-cols-2 grid-rows-3 gap-2.5">
         {cards.map((c) =>
           open === c.key ? (
-            <div key={c.key} className="h-[132px] rounded-[var(--radius-card)] border border-dashed border-line" />
+            <div key={c.key} className="min-h-[96px] rounded-[var(--radius-card)] border border-dashed border-line lg:min-h-0" />
           ) : (
             <motion.button
               key={c.key}
               layoutId={`card-${c.key}`}
               onClick={() => setOpen(c.key)}
-              className="flex h-[132px] flex-col rounded-[var(--radius-card)] border border-line bg-surface p-4 text-left shadow-[var(--shadow-soft)] transition-shadow hover:shadow-[var(--shadow-lift)] sm:p-5"
+              className="flex h-full min-h-[96px] flex-col justify-center overflow-visible rounded-[var(--radius-card)] border border-line bg-surface px-3 py-2 text-left shadow-[var(--shadow-soft)] transition-shadow hover:shadow-[var(--shadow-lift)] lg:min-h-0"
             >
-              <motion.div layout="position" className="flex w-full items-center justify-between">
-                <span className="flex items-center gap-1.5 text-[13px] font-medium text-muted">
+              <motion.div layout="position" className="flex w-full items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-1.5 text-[13px] font-medium text-muted">
                   <span style={{ color: c.tone }}>{c.icon}</span>
-                  {c.label}
+                  <span className="truncate">{c.label}</span>
                 </span>
-                {c.spark && <Sparkline values={c.spark} width={52} height={20} color={c.tone} fill={false} />}
+                {c.spark && <Sparkline values={c.spark} width={44} height={16} color={c.tone} fill={false} />}
               </motion.div>
-              <motion.p layout="position" className="mt-auto truncate text-[19px] font-semibold tracking-tight tabular sm:text-[21px]">
+              <motion.p layout="position" className="mt-1.5 shrink-0 truncate text-[17px] font-semibold leading-snug tracking-tight tabular">
                 {c.value}
               </motion.p>
-              <motion.p layout="position" className="mt-0.5 truncate text-[12px] text-muted sm:text-[13px]">
+              <motion.p layout="position" className="mt-0.5 shrink-0 truncate text-[12px] leading-snug text-muted">
                 {c.sub}
               </motion.p>
-              {c.progress != null && <Bar value={c.progress} className="mt-2.5" height="h-1" color={c.key === "cardio" ? "bg-clay" : "bg-accent"} />}
+              {c.progress != null && (
+                <div className="mt-2 shrink-0">
+                  <Bar value={c.progress} height="h-1" color={c.key === "cardio" ? "bg-clay" : "bg-accent"} />
+                </div>
+              )}
             </motion.button>
           )
         )}
+          </div>
+        </div>
+        </div>
+        </div>
       </div>
 
       <AnimatePresence>
