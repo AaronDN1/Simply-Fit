@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Apple, ArrowRight, Download, LogOut, Smartphone } from "lucide-react";
+import { ThemeSwitch } from "@/components/theme";
 import { Badge, Card, PageHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Segmented, Toggle, UnitInput } from "@/components/ui/field";
@@ -113,6 +114,10 @@ export default function SettingsPage() {
     <div>
       <PageHeader title="Settings" />
       <Card className="p-5 sm:p-8">
+        <Section title="Appearance" description="Light keeps the chalk background. Dark is the gym with the lights down. System follows this device.">
+          <ThemeSwitch className="max-w-sm" />
+        </Section>
+
         <Section title="Profile">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Name">

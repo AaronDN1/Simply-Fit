@@ -4,37 +4,85 @@
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-serif), ui-serif, Georgia, serif;
 
-  --color-canvas: #f5f2ec;
-  --color-surface: #fffdf9;
-  --color-sunken: #ece8e0;
-  --color-ink: #1d1c19;
-  --color-ink-soft: #3b3934;
-  --color-muted: #77736b;
-  --color-faint: #a6a198;
-  --color-line: #e4dfd5;
-  --color-line-strong: #d5cfc3;
+  /* Chalk room: warm off-white, iron type, leather accent. */
+  --color-canvas: #f2f0ea;
+  --color-surface: #faf9f6;
+  --color-sunken: #e6e3da;
+  --color-ink: #161614;
+  --color-ink-soft: #33332f;
+  --color-muted: #6d6a63;
+  --color-faint: #9c978e;
+  --color-line: #ddd8ce;
+  --color-line-strong: #cbc5b8;
 
-  --color-accent: #2f5d4c;
-  --color-accent-strong: #234839;
-  --color-accent-soft: #e2ebe5;
-  --color-accent-tint: #f0f5f1;
+  --color-accent: #8f2d24;
+  --color-accent-strong: #6f2018;
+  --color-accent-soft: #f6e6e1;
+  --color-accent-tint: #faf3ef;
+  --color-on-accent: #f7f3ec;
 
-  --color-clay: #b8613f;
-  --color-clay-soft: #f6e6dd;
-  --color-honey: #c8962e;
-  --color-honey-soft: #f6edd8;
-  --color-sky: #4f7896;
-  --color-sky-soft: #e3ecf2;
+  --color-clay: #9a4e32;
+  --color-on-clay: #f7f3ec;
+  --color-clay-soft: #f6e6dc;
+  --color-honey: #8a5e12;
+  --color-honey-soft: #f6edd6;
+  --color-sky: #3e5c72;
+  --color-sky-soft: #e4ebf1;
+
+  /* Plates that stay dark in both themes. */
+  --color-iron: #161614;
+  --color-iron-line: #2a2a26;
+  --color-chalk: #f4f1ea;
+  --color-chalk-dim: #c9c3b6;
+  --color-brand: #6f2018;
 
   --radius-card: 1.25rem;
-  --shadow-soft: 0 1px 2px rgb(29 28 25 / 0.04), 0 4px 16px -8px rgb(29 28 25 / 0.08);
-  --shadow-lift: 0 2px 4px rgb(29 28 25 / 0.04), 0 16px 40px -16px rgb(29 28 25 / 0.18);
+  --shadow-soft: 0 1px 2px rgb(22 22 20 / 0.05), 0 4px 16px -8px rgb(22 22 20 / 0.1);
+  --shadow-lift: 0 2px 4px rgb(22 22 20 / 0.05), 0 16px 40px -16px rgb(22 22 20 / 0.2);
+}
+
+/* Rubber floor. Same tokens, inverted, so every screen follows. */
+html.dark {
+  --color-canvas: #121211;
+  --color-surface: #1c1c19;
+  --color-sunken: #282824;
+  --color-ink: #f3f1ea;
+  --color-ink-soft: #d8d4ca;
+  --color-muted: #a39e94;
+  --color-faint: #7d786f;
+  --color-line: #32322c;
+  --color-line-strong: #45453d;
+
+  --color-accent: #f09080;
+  --color-accent-strong: #ffd0c6;
+  --color-accent-soft: #3c2420;
+  --color-accent-tint: #2a1816;
+  --color-on-accent: #1c110e;
+
+  --color-clay: #e7a27a;
+  --color-on-clay: #1c110e;
+  --color-clay-soft: #3a2a22;
+  --color-honey: #e6c07a;
+  --color-honey-soft: #332a16;
+  --color-sky: #8eb4cc;
+  --color-sky-soft: #1a2730;
+
+  --color-iron: #242420;
+  --color-iron-line: #3a3a34;
+  --color-chalk: #f4f1ea;
+  --color-chalk-dim: #bdb6a8;
+  --color-brand: #5c241c;
+
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-lift: 0 16px 40px -16px rgb(0 0 0 / 0.7);
+  color-scheme: dark;
 }
 
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
+    color-scheme: light;
   }
   body {
     @apply bg-canvas text-ink font-sans antialiased;

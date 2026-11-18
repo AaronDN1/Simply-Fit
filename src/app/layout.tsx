@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Instrument_Serif } from "next/font/google";
 import { Providers } from "@/components/providers";
+import { THEME_BOOT, THEME_COLOR } from "@/lib/theme-boot";
 import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist", display: "swap" });
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f5f2ec",
+  themeColor: THEME_COLOR.light,
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -21,8 +22,9 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${geist.variable} ${serif.variable}`}>
+    <html lang="en" className={`${geist.variable} ${serif.variable}`} suppressHydrationWarning>
       <body>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
         <Providers>{children}</Providers>
       </body>
     </html>

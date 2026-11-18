@@ -134,24 +134,24 @@ export default function TodayPage() {
       <div className="grid items-start gap-4 lg:grid-cols-2 lg:items-stretch">
         {/* Today's plan sits beside nutrition so both read in one glance. */}
         <Card className="overflow-hidden">
-          <div className="bg-ink p-5 text-canvas sm:p-6">
+          <div className="border-b border-iron-line bg-iron p-5 text-chalk sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[12px] font-medium uppercase tracking-[0.14em] text-[#b7b2a8]">{t.next ? "Next best step" : "All set"}</p>
+                <p className="text-[12px] font-medium uppercase tracking-[0.14em] text-chalk-dim">{t.next ? "Next best step" : "All set"}</p>
                 <AnimatePresence mode="wait">
                   <motion.div key={copy.title} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}>
                     <h2 className="mt-2 font-display text-[30px] leading-tight sm:text-[34px]">{copy.title}</h2>
-                    <p className="mt-1.5 max-w-sm text-[15px] text-[#cfcac0]">{copy.body}</p>
+                    <p className="mt-1.5 max-w-sm text-[15px] text-chalk-dim">{copy.body}</p>
                   </motion.div>
                 </AnimatePresence>
               </div>
-              <Ring value={t.progress} size={58} stroke={5} track="rgb(255 255 255 / 0.12)" color="#9cc3ad">
+              <Ring value={t.progress} size={58} stroke={5} track="rgb(255 255 255 / 0.14)" color="var(--color-accent)">
                 <span className="text-[13px] font-semibold tabular">
                   {doneCount}/{totalRequired}
                 </span>
               </Ring>
             </div>
-            <Button className="mt-5 bg-canvas text-ink hover:bg-white" onClick={() => act(t.next?.key)}>
+            <Button className="mt-5 bg-chalk text-iron hover:bg-white" onClick={() => act(t.next?.key)}>
               {copy.cta} <ArrowRight className="size-4" />
             </Button>
           </div>
@@ -163,7 +163,7 @@ export default function TodayPage() {
                     initial={false}
                     animate={{ scale: a.done ? [1, 1.2, 1] : 1 }}
                     transition={{ duration: 0.35, ease: "easeOut" }}
-                    className={cn("grid size-6 shrink-0 place-items-center rounded-full border", a.done ? "border-accent bg-accent text-white" : "border-line-strong")}
+                    className={cn("grid size-6 shrink-0 place-items-center rounded-full border", a.done ? "border-accent bg-accent text-on-accent" : "border-line-strong")}
                   >
                     {a.done && <Check className="size-3.5" strokeWidth={3} />}
                   </motion.span>
@@ -260,7 +260,7 @@ export default function TodayPage() {
       <AnimatePresence>
         {open && (
           <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6">
-            <motion.div className="absolute inset-0 bg-ink/25 backdrop-blur-[2px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpen(null)} />
+            <motion.div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpen(null)} />
             <motion.div
               layoutId={`card-${open}`}
               role="dialog"

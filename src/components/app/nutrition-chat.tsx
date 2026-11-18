@@ -201,7 +201,7 @@ export function NutritionChat({ date = todayISO(), remaining }: { date?: string;
               transition={{ type: "spring", stiffness: 320, damping: 22 }}
               className="flex items-center gap-3 rounded-2xl bg-accent-tint px-4 py-3.5"
             >
-              <motion.span initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 500, damping: 18, delay: 0.05 }} className="grid size-8 place-items-center rounded-full bg-accent text-white">
+              <motion.span initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 500, damping: 18, delay: 0.05 }} className="grid size-8 place-items-center rounded-full bg-accent text-on-accent">
                 <Check className="size-4" strokeWidth={3} />
               </motion.span>
               <div>

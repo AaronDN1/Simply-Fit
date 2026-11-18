@@ -88,7 +88,7 @@ export default function NutritionPage() {
           </div>
         </div>
         {remaining < -plan.calorieTarget * 0.1 && (
-          <p className="mt-4 rounded-xl bg-honey-soft px-3.5 py-2.5 text-[13px] text-[#7a5a17]">
+          <p className="mt-4 rounded-xl bg-honey-soft px-3.5 py-2.5 text-[13px] text-honey">
             A bit over today — totally normal. One day doesn't change your trend; tomorrow's plan stays the same.
           </p>
         )}

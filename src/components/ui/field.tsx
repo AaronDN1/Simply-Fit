@@ -119,7 +119,7 @@ export function Choices<T extends string>({
               )}
             >
               {on && (
-                <motion.svg initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} viewBox="0 0 12 12" className="size-2.5 text-white">
+                <motion.svg initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} viewBox="0 0 12 12" className="size-2.5 text-on-accent">
                   <path d="M2.5 6.2 5 8.5l4.5-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                 </motion.svg>
               )}

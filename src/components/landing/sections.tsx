@@ -357,7 +357,7 @@ export function FinalCta() {
   return (
     <section className="px-5 pb-16 pt-8 sm:px-8 sm:pb-24">
       <Reveal className="mx-auto max-w-6xl">
-        <div className="relative overflow-hidden rounded-[36px] bg-accent-strong px-6 py-16 text-center text-canvas sm:px-12 sm:py-24">
+        <div className="relative overflow-hidden rounded-[36px] bg-brand px-6 py-16 text-center text-chalk sm:px-12 sm:py-24">
           <MiniBars
             values={[3, 5, 4, 6, 5, 7, 6, 8, 7, 9, 8, 10, 9, 11, 10, 12]}
             height={160}
@@ -368,14 +368,14 @@ export function FinalCta() {
             Your plan is a few
             <br className="hidden sm:block" /> questions away.
           </h2>
-          <p className="relative mx-auto mt-5 max-w-md text-[17px] text-[#cfe0d6]">
+          <p className="relative mx-auto mt-5 max-w-md text-[17px] text-chalk-dim">
             Create a free account, answer what's relevant, and get a clear plan for food, training, activity, and recovery in about three minutes.
           </p>
           <div className="relative mt-8 flex flex-wrap justify-center gap-3">
-            <ButtonLink href="/signup" size="lg" className="bg-canvas text-ink hover:bg-white">
+            <ButtonLink href="/signup" size="lg" className="bg-chalk text-iron hover:bg-white">
               Build My Plan <ArrowRight className="size-4" />
             </ButtonLink>
-            <ButtonLink href="/login" size="lg" variant="ghost" className="text-canvas hover:bg-white/10">
+            <ButtonLink href="/login" size="lg" variant="ghost" className="text-chalk hover:bg-white/10">
               I have an account
             </ButtonLink>
           </div>
