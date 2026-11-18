@@ -264,7 +264,7 @@ function SetRow({ s, unit, units, onChange, onToggle }: { s: SetLog; unit: strin
         whileTap={{ scale: 0.85 }}
         onClick={() => onToggle(parsed)}
         aria-label={s.done ? "Mark set not done" : "Mark set done"}
-        className={cn("grid size-10 place-items-center rounded-xl border transition-colors", s.done ? "border-accent bg-accent text-white" : "border-line-strong text-faint hover:border-accent hover:text-accent")}
+        className={cn("grid size-10 place-items-center rounded-xl border transition-colors", s.done ? "border-accent bg-accent text-on-accent" : "border-line-strong text-faint hover:border-accent hover:text-accent")}
       >
         <AnimatePresence mode="wait" initial={false}>
           {s.done ? (
@@ -307,8 +307,8 @@ function RestTimer({ rest, onClose }: { rest: { until: number; total: number } |
           exit={{ y: 40, opacity: 0 }}
           className="pointer-events-none fixed inset-x-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 flex justify-center px-4 lg:bottom-8"
         >
-          <div className="pointer-events-auto flex items-center gap-3 rounded-full bg-ink py-2 pl-2 pr-3 text-canvas shadow-[var(--shadow-lift)]">
-            <Ring value={left / rest.total} size={36} stroke={3.5} track="rgb(255 255 255 / 0.15)" color="#9cc3ad">
+          <div className="pointer-events-auto flex items-center gap-3 rounded-full bg-iron py-2 pl-2 pr-3 text-chalk shadow-[var(--shadow-lift)]">
+            <Ring value={left / rest.total} size={36} stroke={3.5} track="rgb(255 255 255 / 0.15)" color="var(--color-accent)">
               <Timer className="size-3.5" />
             </Ring>
             <span className="min-w-[88px] text-[15px] font-medium tabular">{left > 0 ? `Rest ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}` : "Go time"}</span>
@@ -363,17 +363,17 @@ function CompletedCard({ log, celebrate, units, onReopen, history }: { log: Work
   return (
     <motion.div initial={celebrate ? { scale: 0.96, opacity: 0 } : false} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 22 }}>
       <Card className="overflow-hidden">
-        <div className="bg-accent-strong px-5 py-7 text-center text-canvas sm:px-8">
+        <div className="bg-brand px-5 py-7 text-center text-chalk sm:px-8">
           <motion.div
             initial={celebrate ? { scale: 0, rotate: -40 } : false}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ type: "spring", stiffness: 400, damping: 14, delay: 0.1 }}
-            className="mx-auto grid size-14 place-items-center rounded-full bg-canvas text-accent-strong"
+            className="mx-auto grid size-14 place-items-center rounded-full bg-chalk text-brand"
           >
             <Check className="size-7" strokeWidth={3} />
           </motion.div>
           <h2 className="mt-4 font-display text-[34px] leading-tight">{log.dayName} — done.</h2>
-          <p className="mt-1 text-[15px] text-[#cfe0d6]">That's another session in the bank.</p>
+          <p className="mt-1 text-[15px] text-chalk-dim">That's another session in the bank.</p>
         </div>
         <div className="grid grid-cols-3 divide-x divide-line">
           {[

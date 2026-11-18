@@ -34,7 +34,7 @@ export function Badge({ tone = "neutral", className, children }: { tone?: "neutr
     neutral: "bg-sunken text-ink-soft",
     accent: "bg-accent-soft text-accent-strong",
     clay: "bg-clay-soft text-clay",
-    honey: "bg-honey-soft text-[#8a6519]",
+    honey: "bg-honey-soft text-honey",
     sky: "bg-sky-soft text-sky",
   };
   return <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium", tones[tone], className)}>{children}</span>;

@@ -117,7 +117,7 @@ function Scale({ value, onChange, labels }: { value: number | null; onChange: (v
             type="button"
             onClick={() => onChange(n)}
             aria-pressed={value === n}
-            className={cn("h-10 rounded-xl border text-[15px] font-medium tabular transition-colors", value === n ? "border-accent bg-accent text-white" : "border-line bg-surface text-ink-soft hover:border-line-strong")}
+            className={cn("h-10 rounded-xl border text-[15px] font-medium tabular transition-colors", value === n ? "border-accent bg-accent text-on-accent" : "border-line bg-surface text-ink-soft hover:border-line-strong")}
           >
             {n}
           </button>
@@ -164,7 +164,7 @@ export function CheckInForm({ date = todayISO(), onDone }: { date?: string; onDo
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          className={cn("rounded-2xl px-4 py-3 text-[14px] leading-relaxed", advice.tone === "good" ? "bg-accent-tint text-accent-strong" : advice.tone === "ok" ? "bg-honey-soft text-[#7a5a17]" : "bg-clay-soft text-clay")}
+          className={cn("rounded-2xl px-4 py-3 text-[14px] leading-relaxed", advice.tone === "good" ? "bg-accent-tint text-accent-strong" : advice.tone === "ok" ? "bg-honey-soft text-honey" : "bg-clay-soft text-clay")}
         >
           <span className="font-semibold">{advice.label}.</span> {advice.advice}
         </motion.div>

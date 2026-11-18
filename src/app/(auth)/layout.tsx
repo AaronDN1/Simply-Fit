@@ -14,14 +14,14 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <LegalLinks className="flex flex-wrap justify-center gap-3 lg:justify-start" />
         </div>
       </div>
-      <aside className="relative hidden overflow-hidden bg-accent-strong lg:block">
-        <div className="absolute inset-0 flex flex-col justify-end p-14 text-canvas">
+      <aside className="relative hidden overflow-hidden bg-brand lg:block">
+        <div className="absolute inset-0 flex flex-col justify-end p-14 text-chalk">
           <p className="font-display text-[56px] leading-[0.98] tracking-tight">
             Plan less.
             <br />
-            <span className="italic text-[#b9d3c5]">Do more.</span>
+            <span className="italic text-chalk-dim">Do more.</span>
           </p>
-          <p className="mt-5 max-w-sm text-[16px] leading-relaxed text-[#cfe0d6]">
+          <p className="mt-5 max-w-sm text-[16px] leading-relaxed text-chalk-dim">
             One clear plan for your food, training, activity, recovery, and goals. You focus on doing the work.
           </p>
         </div>

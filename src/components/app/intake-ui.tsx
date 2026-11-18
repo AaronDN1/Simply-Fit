@@ -92,7 +92,7 @@ export function DayScale({ value, onChange }: { value: number; onChange: (n: num
               onClick={() => onChange(n)}
               className={cn(
                 "grid h-11 place-items-center rounded-xl text-[15px] font-medium tabular transition-colors",
-                on ? "bg-accent text-white" : n < value ? "bg-accent-soft text-accent-strong" : "bg-sunken text-muted hover:text-ink"
+                on ? "bg-accent text-on-accent" : n < value ? "bg-accent-soft text-accent-strong" : "bg-sunken text-muted hover:text-ink"
               )}
             >
               {n}

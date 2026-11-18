@@ -78,7 +78,7 @@ export function MacroEditor({
             Calories use 4 kcal/g for protein and carbs, and 9 kcal/g for fat. This changes your projected rate while your activity stays the same.
           </p>
           {invalid && (
-            <p className="rounded-xl bg-honey-soft px-3 py-2 text-[12px] text-[#7a5a17]">
+            <p className="rounded-xl bg-honey-soft px-3 py-2 text-[12px] text-honey">
               Keep the macro total between {Math.round(floor).toLocaleString()} and {Math.round(maxCalories).toLocaleString()} kcal so the plan stays within its safe projected rate.
             </p>
           )}

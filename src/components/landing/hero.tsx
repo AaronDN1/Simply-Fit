@@ -21,7 +21,7 @@ const CARD_W = 360;
 const ROWS_TOP = 132;
 
 const FRAGMENTS: Fragment[] = [
-  { icon: <Soup className="size-4" />, title: "Breakfast", detail: "Oats, whey, berries", value: "540 kcal", tone: "bg-honey-soft text-[#8a6519]", done: true, from: { x: -250, y: -40, r: -9 } },
+  { icon: <Soup className="size-4" />, title: "Breakfast", detail: "Oats, whey, berries", value: "540 kcal", tone: "bg-honey-soft text-honey", done: true, from: { x: -250, y: -40, r: -9 } },
   { icon: <Moon className="size-4" />, title: "Sleep", detail: "Target 8h", value: "7h 50m", tone: "bg-sky-soft text-sky", done: true, from: { x: 200, y: -70, r: 7 } },
   { icon: <Dumbbell className="size-4" />, title: "Upper body", detail: "6 exercises · 55 min", value: "5:30 pm", tone: "bg-accent-soft text-accent", from: { x: -300, y: 210, r: 6 } },
   { icon: <Footprints className="size-4" />, title: "Steps", detail: "Goal 10,000", value: "6,420", tone: "bg-accent-soft text-accent", from: { x: 220, y: 170, r: -5 } },
@@ -68,7 +68,7 @@ function FragmentRow({ f, i, progress, spread }: { f: Fragment; i: number; progr
       </span>
       <span className="text-[13px] font-medium tabular text-ink-soft">{f.value}</span>
       {f.done && (
-        <motion.span style={{ opacity: checkOpacity }} className="grid size-5 place-items-center rounded-full bg-accent text-white">
+        <motion.span style={{ opacity: checkOpacity }} className="grid size-5 place-items-center rounded-full bg-accent text-on-accent">
           <Check className="size-3" strokeWidth={3} />
         </motion.span>
       )}
@@ -108,12 +108,12 @@ function TodayStage({ progress }: { progress: MotionValue<number> }) {
       ))}
       <motion.div
         style={{ opacity: nextOpacity, y: nextY, top: ROWS_TOP + FRAGMENTS.length * ROW_H + 14 }}
-        className="absolute inset-x-4 flex items-center justify-between rounded-2xl bg-ink px-4 py-3 text-canvas"
+        className="absolute inset-x-4 flex items-center justify-between rounded-2xl bg-iron px-4 py-3 text-chalk"
       >
         <span className="flex items-center gap-2.5 text-[14px]">
-          <Wheat className="size-4 text-[#b9d3c5]" />
+          <Wheat className="size-4 text-chalk-dim" />
           <span>
-            <span className="block text-[11px] uppercase tracking-[0.12em] text-[#b7b2a8]">Next up</span>
+            <span className="block text-[11px] uppercase tracking-[0.12em] text-chalk-dim">Next up</span>
             Log lunch in one sentence
           </span>
         </span>

@@ -91,21 +91,21 @@ function PlanView() {
     <>
       <AnimatePresence>
         {welcome && (
-          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-6 flex flex-col gap-3 rounded-[var(--radius-card)] bg-accent-strong p-5 text-canvas sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-6 flex flex-col gap-3 rounded-[var(--radius-card)] bg-brand p-5 text-chalk sm:flex-row sm:items-center sm:justify-between sm:p-6">
             <div>
-              <p className="flex items-center gap-2 text-[13px] font-medium text-[#b9d3c5]">
+              <p className="flex items-center gap-2 text-[13px] font-medium text-chalk-dim">
                 <Sparkles className="size-4" /> Your plan is ready
               </p>
-              <p className="mt-1 text-[15px] text-[#e3eee7]">Here's what we recommend and why. Adjust anything that doesn't fit — then start your day.</p>
+              <p className="mt-1 text-[15px] text-chalk">Here's what we recommend and why. Adjust anything that doesn't fit — then start your day.</p>
               {assumptions.length > 0 && (
-                <ul className="mt-3 max-w-lg list-disc space-y-1 pl-4 text-[13px] leading-relaxed text-[#d5e6dc]">
+                <ul className="mt-3 max-w-lg list-disc space-y-1 pl-4 text-[13px] leading-relaxed text-chalk-dim">
                   {assumptions.map((line) => (
                     <li key={line}>{line}</li>
                   ))}
                 </ul>
               )}
             </div>
-            <Button className="bg-canvas text-ink hover:bg-white" onClick={() => router.push("/today")}>
+            <Button className="bg-chalk text-iron hover:bg-white" onClick={() => router.push("/today")}>
               Start today <ArrowRight className="size-4" />
             </Button>
           </motion.div>

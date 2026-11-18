@@ -33,7 +33,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               exit={{ opacity: 0, y: 8, scale: 0.98 }}
               className="pointer-events-auto flex items-center gap-2.5 rounded-full bg-ink py-2.5 pl-3 pr-4 text-sm text-canvas shadow-[var(--shadow-lift)]"
             >
-              <span className={`grid size-5 place-items-center rounded-full ${t.tone === "success" ? "bg-accent" : "bg-clay"}`}>
+              <span className={`grid size-5 place-items-center rounded-full ${t.tone === "success" ? "bg-accent text-on-accent" : "bg-clay text-on-clay"}`}>
                 {t.tone === "success" ? <Check className="size-3" strokeWidth={3} /> : <CircleAlert className="size-3" strokeWidth={3} />}
               </span>
               {t.message}

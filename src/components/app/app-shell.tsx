@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { Activity, CalendarCheck, Dumbbell, LineChart, LogOut, Settings, SlidersHorizontal, Soup } from "lucide-react";
 import { Logo, LogoMark } from "@/components/logo";
+import { ThemeSwitch } from "@/components/theme";
 import { useStore } from "@/lib/store";
 import { signOut } from "@/lib/auth";
 import { cn } from "@/lib/utils";
@@ -55,8 +56,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <div className="mt-auto">
+          <ThemeSwitch className="mb-3" />
           {mode === "demo" && (
-            <p className="mb-3 rounded-xl bg-honey-soft px-3 py-2 text-[12px] leading-snug text-[#7a5a17]">Local demo — data stays in this browser.</p>
+            <p className="mb-3 rounded-xl bg-honey-soft px-3 py-2 text-[12px] leading-snug text-honey">Local demo — data stays in this browser.</p>
           )}
           <div className="flex items-center gap-2.5 rounded-xl px-2 py-2">
             <span className="grid size-8 place-items-center rounded-full bg-accent-soft text-[13px] font-semibold text-accent-strong">
@@ -79,6 +81,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <LogoMark />
         </Link>
         <div className="flex items-center gap-1">
+          <ThemeSwitch labelled={false} className="mr-1" />
           <Link href="/plan" className={cn("grid size-9 place-items-center rounded-full", active("/plan") ? "bg-sunken text-ink" : "text-muted")} aria-label="My plan">
             <SlidersHorizontal className="size-[18px]" />
           </Link>
