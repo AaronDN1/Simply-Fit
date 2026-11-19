@@ -183,6 +183,12 @@ export interface WorkoutLog {
 
 export type HealthStatus = "not_connected" | "connected" | "unavailable";
 
+/** Saved by an admin. Plans are not on sale yet; `plan` is only the future entitlement. */
+export interface AccountAccess {
+  disabledAt: string | null;
+  plan: "none" | "granted";
+}
+
 export interface Settings {
   units: { weight: "lb" | "kg"; height: "imperial" | "metric" };
   notifications: {
@@ -196,6 +202,7 @@ export interface Settings {
   legal: { acceptedAt: string | null; version: string | null };
   health: { appleHealth: HealthStatus; healthConnect: HealthStatus; lastSyncAt: string | null };
   savedMeals: SavedMeal[];
+  access?: AccountAccess;
 }
 
 export interface Profile {
@@ -225,4 +232,5 @@ export const defaultSettings: Settings = {
   legal: { acceptedAt: null, version: null },
   health: { appleHealth: "not_connected", healthConnect: "not_connected", lastSyncAt: null },
   savedMeals: [],
+  access: { disabledAt: null, plan: "none" },
 };

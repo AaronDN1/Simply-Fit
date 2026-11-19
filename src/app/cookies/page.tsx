@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { LegalDocument, LegalSection } from "@/components/legal/document";
+import { LegalDocument, LegalSection, SupportEmail } from "@/components/legal/document";
 
 export const metadata: Metadata = { title: "Cookie notice" };
 
@@ -21,6 +21,11 @@ export default function CookiesPage() {
       <LegalSection title="Local demo mode">
         <p>
           If Supabase is not configured, the app does not set auth cookies. Demo accounts and logs stay in this browser's local storage. Clearing site data for this site removes them.
+        </p>
+      </LegalSection>
+      <LegalSection title="Questions">
+        <p>
+          Questions about these cookies go to <SupportEmail />.
         </p>
       </LegalSection>
       <LegalSection title="If this changes">

@@ -8,6 +8,7 @@ import { MailCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { authMode, signInWithEmail, signInWithGoogle, signUpWithEmail, startDemoSession } from "@/lib/auth";
+import { LegalAcceptFields } from "@/components/legal/document";
 import { LEGAL_ACCEPT_KEY, LEGAL_VERSION } from "@/lib/legal";
 import { buildDemoSnapshot } from "@/lib/data/seed";
 import { readLocalSnapshot, writeLocalSnapshot } from "@/lib/data/local";
@@ -31,7 +32,8 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
-  const [agreed, setAgreed] = useState(false);
+  const [agreedTerms, setAgreedTerms] = useState(false);
+  const [agreedPrivacy, setAgreedPrivacy] = useState(false);
   const [error, setError] = useState<string | null>(params.get("error"));
   const [loading, setLoading] = useState<"email" | "google" | "demo" | null>(null);
   const [sent, setSent] = useState(false);
@@ -39,8 +41,8 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (mode === "signup" && (!agreedTerms || !agreedPrivacy)) return setError("Check both boxes. An account requires the Terms of Service and the Privacy Policy.");
     if (mode === "signup" && password.length < 8) return setError("Use at least 8 characters for your password.");
-    if (mode === "signup" && !agreed) return setError("Agree to the Terms and Privacy Policy to create an account.");
     setLoading("email");
     try {
       if (mode === "signup") {
@@ -62,7 +64,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
 
   async function google() {
     setError(null);
-    if (mode === "signup" && !agreed) return setError("Agree to the Terms and Privacy Policy to create an account.");
+    if (mode === "signup" && (!agreedTerms || !agreedPrivacy)) return setError("Check both boxes. An account requires the Terms of Service and the Privacy Policy.");
     if (mode === "signup") sessionStorage.setItem(LEGAL_ACCEPT_KEY, LEGAL_VERSION);
     setLoading("google");
     try {
@@ -100,20 +102,13 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
       <p className="mt-2 text-[15px] text-muted">{mode === "signup" ? "Create an account — it takes about three minutes to get your plan." : "Sign in to see what's on for today."}</p>
 
       {mode === "signup" && (
-        <label className="mt-6 flex items-start gap-2.5 text-[13px] leading-relaxed text-muted">
-          <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 size-4 accent-[var(--color-accent)]" />
-          <span>
-            I agree to the{" "}
-            <Link href="/terms" target="_blank" className="font-medium text-ink underline-offset-4 hover:underline">
-              Terms
-            </Link>{" "}
-            and{" "}
-            <Link href="/privacy" target="_blank" className="font-medium text-ink underline-offset-4 hover:underline">
-              Privacy Policy
-            </Link>
-            . I'm 16 or older, and I understand Simply Fit gives general guidance, not medical advice.
-          </span>
-        </label>
+        <LegalAcceptFields
+          className="mt-6"
+          terms={agreedTerms}
+          privacy={agreedPrivacy}
+          onTerms={setAgreedTerms}
+          onPrivacy={setAgreedPrivacy}
+        />
       )}
 
       <Button variant="secondary" size="lg" className={mode === "signup" ? "mt-4 w-full" : "mt-7 w-full"} onClick={google} loading={loading === "google"}>

@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "motion/react";
-import { Activity, CalendarCheck, Dumbbell, LineChart, LogOut, Settings, SlidersHorizontal, Soup } from "lucide-react";
+import { Activity, CalendarCheck, Dumbbell, LineChart, LogOut, Settings, Shield, SlidersHorizontal, Soup } from "lucide-react";
 import { Logo, LogoMark } from "@/components/logo";
 import { ThemeSwitch } from "@/components/theme";
 import { useStore } from "@/lib/store";
 import { signOut } from "@/lib/auth";
+import { isAdminEmail } from "@/lib/admin";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -30,7 +31,8 @@ function initials(name: string, email: string) {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const router = useRouter();
-  const { data, mode } = useStore();
+  const { data, mode, actor, impersonating } = useStore();
+  const showAdmin = isAdminEmail(actor?.email);
   const active = (href: string) => path === href || path.startsWith(`${href}/`);
 
   async function logout() {
@@ -42,7 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-[100svh] lg:grid lg:grid-cols-[232px_1fr]">
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-[100svh] flex-col border-r border-line px-4 py-5 lg:flex">
+      <aside className={cn("sticky hidden flex-col border-r border-line px-4 py-5 lg:flex", impersonating ? "top-12 h-[calc(100svh-3rem)]" : "top-0 h-[100svh]")}>
         <Logo href="/today" className="px-2" />
         <nav className="mt-8 flex flex-col gap-0.5">
           {NAV.map((n) => (
@@ -54,6 +56,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {SECONDARY.map((n) => (
             <SideLink key={n.href} {...n} active={active(n.href)} />
           ))}
+          {showAdmin && <SideLink href="/admin" label="Admin" icon={Shield} active={active("/admin")} />}
         </nav>
         <div className="mt-auto">
           <ThemeSwitch className="mb-3" />
@@ -76,7 +79,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Mobile top bar */}
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line/70 bg-canvas/85 px-4 backdrop-blur-md lg:hidden">
+      <header className={cn("sticky z-30 flex h-14 items-center justify-between border-b border-line/70 bg-canvas/85 px-4 backdrop-blur-md lg:hidden", impersonating ? "top-12" : "top-0")}>
         <Link href="/today" aria-label="Today">
           <LogoMark />
         </Link>
@@ -88,6 +91,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Link href="/settings" className={cn("grid size-9 place-items-center rounded-full", active("/settings") ? "bg-sunken text-ink" : "text-muted")} aria-label="Settings">
             <Settings className="size-[18px]" />
           </Link>
+          {showAdmin && (
+            <Link href="/admin" className={cn("grid size-9 place-items-center rounded-full", active("/admin") ? "bg-sunken text-ink" : "text-muted")} aria-label="Admin">
+              <Shield className="size-[18px]" />
+            </Link>
+          )}
         </div>
       </header>
 

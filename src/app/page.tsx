@@ -3,7 +3,7 @@ import { Logo } from "@/components/logo";
 import { ButtonLink } from "@/components/ui/button";
 import { LandingAuthAction } from "@/components/landing/auth-action";
 import { Hero } from "@/components/landing/hero";
-import { LegalLinks } from "@/components/legal/document";
+import { LegalLinks, SupportEmail } from "@/components/legal/document";
 import { DashboardSection, FinalCta, HealthSection, HowItWorks, NutritionSection, PlansSection, ProgressSection } from "@/components/landing/sections";
 
 export default function LandingPage() {
@@ -59,6 +59,7 @@ export default function LandingPage() {
               </Link>
             </div>
             <LegalLinks className="flex flex-wrap gap-4" />
+            <SupportEmail className="text-[13px]" />
           </div>
         </div>
       </footer>

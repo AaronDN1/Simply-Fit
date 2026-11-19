@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
-import { LEGAL_UPDATED } from "@/lib/legal";
+import { LEGAL_UPDATED, SUPPORT_EMAIL } from "@/lib/legal";
+import { cn } from "@/lib/utils";
 
 const LINKS = [
   { href: "/privacy", label: "Privacy" },
@@ -18,6 +19,63 @@ export function LegalLinks({ className }: { className?: string }) {
         </Link>
       ))}
     </nav>
+  );
+}
+
+export function LegalAcceptFields({
+  terms,
+  privacy,
+  onTerms,
+  onPrivacy,
+  className,
+}: {
+  terms: boolean;
+  privacy: boolean;
+  onTerms: (value: boolean) => void;
+  onPrivacy: (value: boolean) => void;
+  className?: string;
+}) {
+  return (
+    <div className={cn("space-y-3", className)}>
+      <label className="flex items-start gap-2.5 text-[13px] leading-relaxed text-muted">
+        <input
+          type="checkbox"
+          checked={terms}
+          onChange={(e) => onTerms(e.target.checked)}
+          className="mt-0.5 size-4 shrink-0 accent-[var(--color-accent)]"
+        />
+        <span>
+          I have read and agree to the{" "}
+          <Link href="/terms" target="_blank" rel="noopener noreferrer" className="font-medium text-ink underline-offset-4 hover:underline">
+            Terms of Service
+          </Link>
+          . I am 16 or older. I understand Simply Fit gives general fitness guidance, not medical advice, and that Simply Fit may suspend or permanently ban my account at any time, for any reason, whether or not I have a subscription or any other relationship with Simply Fit.
+        </span>
+      </label>
+      <label className="flex items-start gap-2.5 text-[13px] leading-relaxed text-muted">
+        <input
+          type="checkbox"
+          checked={privacy}
+          onChange={(e) => onPrivacy(e.target.checked)}
+          className="mt-0.5 size-4 shrink-0 accent-[var(--color-accent)]"
+        />
+        <span>
+          I have read and agree to the{" "}
+          <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="font-medium text-ink underline-offset-4 hover:underline">
+            Privacy Policy
+          </Link>
+          .
+        </span>
+      </label>
+    </div>
+  );
+}
+
+export function SupportEmail({ className }: { className?: string }) {
+  return (
+    <a href={`mailto:${SUPPORT_EMAIL}`} className={cn("font-medium text-ink underline-offset-4 hover:underline", className)}>
+      {SUPPORT_EMAIL}
+    </a>
   );
 }
 
@@ -49,7 +107,9 @@ export function LegalDocument({ title, lede, children }: { title: string; lede: 
       </article>
       <footer className="border-t border-line px-5 py-8">
         <div className="mx-auto flex max-w-3xl flex-col gap-4 text-sm text-muted sm:flex-row sm:items-center sm:justify-between">
-          <p>Simply Fit · general fitness guidance, not medical advice.</p>
+          <p>
+            Simply Fit · general fitness guidance, not medical advice. <SupportEmail />
+          </p>
           <LegalLinks className="flex flex-wrap gap-4" />
         </div>
       </footer>

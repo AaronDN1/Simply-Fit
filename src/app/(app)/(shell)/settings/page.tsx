@@ -13,7 +13,7 @@ import { useToast } from "@/components/ui/toast";
 import { useStore } from "@/lib/store";
 import { deleteAccount, linkGoogle, linkedProviders, signOut, updateEmail, updatePassword } from "@/lib/auth";
 import { detectDevice, nativeBridge, PLATFORM_LABEL, type HealthPlatform } from "@/lib/health";
-import { LegalLinks } from "@/components/legal/document";
+import { LegalLinks, SupportEmail } from "@/components/legal/document";
 import { AI_OFF_COPY, AI_ON_COPY } from "@/lib/legal";
 import { buildPlan } from "@/lib/plan";
 import { displayWeight, inputWeightToKg } from "@/lib/units";
@@ -315,6 +315,9 @@ export default function SettingsPage() {
             />
           </div>
           <LegalLinks className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-[13px] text-muted" />
+          <p className="mt-4 text-[13px] leading-relaxed text-muted">
+            Account help, privacy questions, and anything else: <SupportEmail />
+          </p>
         </Section>
 
         <Section title="Your data">

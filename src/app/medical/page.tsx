@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { LegalDocument, LegalSection } from "@/components/legal/document";
+import { LegalDocument, LegalSection, SupportEmail } from "@/components/legal/document";
 
 export const metadata: Metadata = { title: "Medical disclaimer" };
 
@@ -25,6 +25,11 @@ export default function MedicalPage() {
           Meal calories and macros are estimates, including when a photo or a description is sent to the AI. A photo can miss oil, sauce, and portion size. Workout suggestions are general training ideas, not rehab and not a guarantee that an exercise is safe for your joints or your history.
         </p>
         <p>Weight goes up and down from water, food, and sleep. The trend line is a view of the numbers you logged, not a clinical measurement.</p>
+      </LegalSection>
+      <LegalSection title="Questions about the app">
+        <p>
+          Questions about Simply Fit go to <SupportEmail />. That inbox is not a medical service and cannot help in an emergency.
+        </p>
       </LegalSection>
       <LegalSection title="Your decision">
         <p>You decide what to eat, how to train, and whether a suggestion fits you. Stop an exercise that hurts, and don't keep a calorie target that leaves you unwell. The in-app check-in is a prompt to train easier or harder. It is not a diagnosis.</p>

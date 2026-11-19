@@ -7,16 +7,23 @@ import { motion } from "motion/react";
 import { useStore } from "@/lib/store";
 import { Logo, LogoMark } from "@/components/logo";
 import { Button } from "@/components/ui/button";
-import { LegalLinks } from "@/components/legal/document";
+import { LegalAcceptFields, SupportEmail } from "@/components/legal/document";
+import { ImpersonationBar } from "@/components/app/impersonation-bar";
 import { hasAcceptedLegal, LEGAL_ACCEPT_KEY, LEGAL_VERSION } from "@/lib/legal";
+import { isAdminEmail, readAccess } from "@/lib/admin";
+import { consumeAdminReturn } from "@/lib/impersonation";
+import { signOut } from "@/lib/auth";
 
 /** Keeps signed-out users out, records legal acceptance, and sends new accounts through onboarding. */
 export function AppGate({ children }: { children: React.ReactNode }) {
-  const { status, data, error, reload, updateProfile } = useStore();
+  const { status, data, error, reload, updateProfile, actor, impersonating } = useStore();
   const router = useRouter();
   const path = usePathname();
   const onboarded = Boolean(data.profile.onboardedAt && data.profile.plan);
   const onOnboarding = path.startsWith("/onboarding");
+  const adminRoute = path.startsWith("/admin");
+  const actorIsAdmin = isAdminEmail(actor?.email);
+  const disabled = Boolean(readAccess(data.profile.settings).disabledAt);
   const accepted = hasAcceptedLegal(data.profile.settings.legal);
   const [mounted, setMounted] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -29,8 +36,11 @@ export function AppGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (status === "signed_out") router.replace(`/login?next=${encodeURIComponent(path)}`);
-    else if (status === "ready" && accepted && !onboarded && !onOnboarding) router.replace("/onboarding");
-  }, [status, accepted, onboarded, onOnboarding, path, router]);
+    else if (status === "ready" && accepted && !onboarded && !onOnboarding && !(adminRoute && actorIsAdmin) && !disabled) {
+      if (actorIsAdmin && consumeAdminReturn()) router.replace("/admin");
+      else router.replace("/onboarding");
+    }
+  }, [status, accepted, onboarded, onOnboarding, adminRoute, actorIsAdmin, disabled, path, router]);
 
   useEffect(() => {
     if (status !== "ready" || accepted || !sessionAccepted || writing.current) return;
@@ -72,8 +82,28 @@ export function AppGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const showLegal = status === "ready" && mounted && !accepted && (!sessionAccepted || Boolean(legalError));
-  const ready = status === "ready" && accepted && (onboarded || onOnboarding);
+  const showLegal = status === "ready" && mounted && !impersonating && !accepted && (!sessionAccepted || Boolean(legalError));
+  const ready = status === "ready" && (impersonating || accepted) && (onboarded || onOnboarding || (adminRoute && actorIsAdmin));
+  if (status === "ready" && disabled && !impersonating) {
+    return (
+      <div className="grid min-h-[100svh] place-items-center px-6 text-center">
+        <div className="max-w-sm">
+          <h1 className="font-display text-[36px] leading-tight">This account is disabled</h1>
+          <p className="mt-2 text-[15px] text-muted">Simply Fit access for this account has been turned off.</p>
+          <Button
+            className="mt-6"
+            variant="secondary"
+            onClick={async () => {
+              await signOut();
+              router.replace("/login");
+            }}
+          >
+            Sign out
+          </Button>
+        </div>
+      </div>
+    );
+  }
   if (showLegal) return <LegalGate onAccept={accept} saving={saving} error={legalError} />;
   if (!ready) {
     return (
@@ -84,25 +114,36 @@ export function AppGate({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  return <>{children}</>;
+  return (
+    <>
+      {impersonating && <ImpersonationBar />}
+      <div className={impersonating ? "pt-12" : undefined}>{children}</div>
+    </>
+  );
 }
 
 function LegalGate({ onAccept, saving, error }: { onAccept: () => void; saving: boolean; error: string | null }) {
+  const [terms, setTerms] = useState(false);
+  const [privacy, setPrivacy] = useState(false);
+  const both = terms && privacy;
   return (
     <div className="grid min-h-[100svh] place-items-center px-5 py-10">
       <div className="w-full max-w-md">
         <Logo href="/" />
         <h1 className="mt-8 font-display text-[36px] leading-[1.05] tracking-tight">Before you continue</h1>
         <p className="mt-3 text-[15px] leading-relaxed text-muted">
-          Simply Fit stores your plan and logs. When cloud AI is on, meal text, photos, and voice notes are sent to OpenAI. Please read these before using the app. You need to be 16 or older.
+          The Terms of Service and the Privacy Policy are a contract. Both boxes are required. Simply Fit may suspend or ban an account at any time. The app stores your plan and logs, and cloud AI sends meal text, photos, and voice notes to OpenAI when that setting is on.
         </p>
-        <LegalLinks className="mt-5 flex flex-col gap-2 text-[15px] font-medium text-ink" />
+        <LegalAcceptFields className="mt-5" terms={terms} privacy={privacy} onTerms={setTerms} onPrivacy={setPrivacy} />
+        <p className="mt-4 text-[13px] text-muted">
+          Questions: <SupportEmail />
+        </p>
         <p className="mt-4 text-[13px] leading-relaxed text-muted">
-          The <Link href="/medical" className="underline-offset-4 hover:underline">medical disclaimer</Link> explains that this is general guidance, not medical care.
+          The <Link href="/medical" className="underline-offset-4 hover:underline">medical disclaimer</Link> is part of the terms. It explains that this is general guidance, not medical care.
         </p>
         {error && <p className="mt-4 text-[13px] text-clay">{error}</p>}
-        <Button className="mt-6 w-full" size="lg" onClick={onAccept} loading={saving}>
-          I agree, and I'm 16 or older
+        <Button className="mt-6 w-full" size="lg" onClick={onAccept} loading={saving} disabled={!both}>
+          I agree
         </Button>
       </div>
     </div>

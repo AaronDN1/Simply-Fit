@@ -4,6 +4,8 @@ import { getSupabaseBrowser } from "./supabase/client";
 import { isSupabaseConfigured } from "./supabase/config";
 import { uid } from "./utils";
 import { removeLocalSnapshot } from "./data/local";
+import { isAdminEmail } from "./admin";
+import { readImpersonation, writeImpersonation } from "./impersonation";
 
 export interface AuthUser {
   id: string;
@@ -20,6 +22,8 @@ interface DemoAccount {
   email: string;
   name: string;
   passwordHash: string;
+  disabledAt?: string | null;
+  createdAt?: string;
 }
 const ACCOUNTS_KEY = "simplyfit:accounts";
 const SESSION_KEY = "simplyfit:session";
@@ -65,7 +69,8 @@ function siteUrl() {
 
 /* ---------------- Public API ---------------- */
 
-export async function getCurrentUser(): Promise<AuthUser | null> {
+/** The account that actually signed in. Impersonation does not change this. */
+export async function getSessionUser(): Promise<AuthUser | null> {
   if (sessionStorage.getItem(SUPABASE_REMEMBER_KEY) === "0") {
     clearSupabasePersistence();
     sessionStorage.removeItem(SUPABASE_REMEMBER_KEY);
@@ -82,6 +87,42 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   return acc ? { id: acc.id, email: acc.email, name: acc.name } : null;
 }
 
+/** The account the app should load. An allowlisted admin may be viewing someone else. */
+export async function getCurrentUser(): Promise<AuthUser | null> {
+  const session = await getSessionUser();
+  if (!session) return null;
+  const impersonating = readImpersonation();
+  if (!impersonating) return session;
+  if (!isAdminEmail(session.email) || impersonating.id === session.id) {
+    writeImpersonation(null);
+    return session;
+  }
+  return { id: impersonating.id, email: impersonating.email, name: impersonating.name };
+}
+
+export function listDemoAccounts() {
+  return readAccounts().map(({ id, email, name, disabledAt, createdAt }) => ({
+    id,
+    email,
+    name,
+    disabledAt: disabledAt ?? null,
+    createdAt: createdAt ?? null,
+  }));
+}
+
+export function setDemoDisabled(id: string, disabledAt: string | null) {
+  const accounts = readAccounts();
+  const acc = accounts.find((a) => a.id === id);
+  if (!acc) throw new Error("No local account with that id.");
+  if (disabledAt && isAdminEmail(acc.email)) throw new Error("Allowlisted administrators stay active.");
+  acc.disabledAt = disabledAt;
+  writeAccounts(accounts);
+}
+
+function assertNotImpersonating() {
+  if (readImpersonation()) throw new Error("End impersonation before changing sign-in details.");
+}
+
 export async function signUpWithEmail(email: string, password: string, name: string) {
   const sb = getSupabaseBrowser();
   if (sb) {
@@ -95,7 +136,7 @@ export async function signUpWithEmail(email: string, password: string, name: str
   }
   const accounts = readAccounts();
   if (accounts.some((a) => a.email.toLowerCase() === email.toLowerCase())) throw new Error("An account with this email already exists.");
-  const acc: DemoAccount = { id: uid(), email, name, passwordHash: await hash(password) };
+  const acc: DemoAccount = { id: uid(), email, name, passwordHash: await hash(password), createdAt: new Date().toISOString() };
   writeAccounts([...accounts, acc]);
   saveDemoSession(acc.id, true);
   return { needsConfirmation: false };
@@ -105,12 +146,16 @@ export async function signInWithEmail(email: string, password: string, remember 
   const sb = getSupabaseBrowser();
   if (sb) {
     const { error } = await sb.auth.signInWithPassword({ email, password });
-    if (error) throw new Error(error.message === "Invalid login credentials" ? "That email and password don't match." : error.message);
+    if (error) {
+      const banned = /banned|disabled/i.test(error.message);
+      throw new Error(banned ? "This account is disabled." : error.message === "Invalid login credentials" ? "That email and password don't match." : error.message);
+    }
     if (!remember) clearSupabasePersistence();
     return;
   }
   const acc = readAccounts().find((a) => a.email.toLowerCase() === email.toLowerCase());
   if (!acc || acc.passwordHash !== (await hash(password))) throw new Error("That email and password don't match.");
+  if (acc.disabledAt) throw new Error("This account is disabled.");
   saveDemoSession(acc.id, remember);
 }
 
@@ -136,6 +181,7 @@ export async function sendPasswordReset(email: string) {
 }
 
 export async function updatePassword(password: string, demoEmail?: string) {
+  assertNotImpersonating();
   const sb = getSupabaseBrowser();
   if (sb) {
     const { error } = await sb.auth.updateUser({ password });
@@ -151,6 +197,7 @@ export async function updatePassword(password: string, demoEmail?: string) {
 }
 
 export async function updateEmail(email: string) {
+  assertNotImpersonating();
   const sb = getSupabaseBrowser();
   if (sb) {
     const { error } = await sb.auth.updateUser({ email }, { emailRedirectTo: `${siteUrl()}/auth/callback?next=/settings` });
@@ -181,6 +228,7 @@ export async function linkGoogle() {
 }
 
 export async function signOut() {
+  writeImpersonation(null);
   const sb = getSupabaseBrowser();
   if (sb) await sb.auth.signOut();
   else {
@@ -197,6 +245,7 @@ export async function accessToken() {
 }
 
 export async function deleteAccount() {
+  assertNotImpersonating();
   const sb = getSupabaseBrowser();
   if (sb) {
     const token = await accessToken();

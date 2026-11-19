@@ -1,14 +1,17 @@
 import type { Settings } from "./types";
 
 /** Bump this when terms or the privacy policy change in a way that needs a new acceptance. */
-export const LEGAL_VERSION = "2026-11-13";
+export const LEGAL_VERSION = "2026-11-18";
 
 export const LEGAL_ACCEPT_KEY = "simplyfit:legal-accepted";
 
 export const MIN_AGE = 16;
 export const MAX_AGE = 90;
 
-export const LEGAL_UPDATED = "November 13, 2026";
+export const LEGAL_UPDATED = "November 18, 2026";
+
+/** Support and the main public address for the app. There is no other contact channel. */
+export const SUPPORT_EMAIL = "smplyfitsupport@gmail.com";
 
 export function hasAcceptedLegal(legal: Settings["legal"] | undefined) {
   return Boolean(legal?.acceptedAt && legal.version === LEGAL_VERSION);

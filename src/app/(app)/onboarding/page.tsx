@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { ArrowLeft, ArrowRight, CalendarDays, Dumbbell, HeartPulse, Leaf, Mountain, Scale, Sparkles, Target, Timer, TrendingDown, TrendingUp, Utensils, Zap } from "lucide-react";
@@ -9,6 +10,7 @@ import { DayScale, DietPicks, Instrument, InstrumentRow, MealRhythm, PaceCards, 
 import { Button } from "@/components/ui/button";
 import { Choices, Field, Input, Segmented, Textarea } from "@/components/ui/field";
 import { useStore } from "@/lib/store";
+import { isAdminEmail } from "@/lib/admin";
 import type { Goal, Intake, Plan, Priority, Settings } from "@/lib/types";
 import { kgToLb, lbToKg } from "@/lib/units";
 import { ageBlockMessage, isEligibleAge } from "@/lib/legal";
@@ -66,7 +68,7 @@ const DIETS = ["Vegetarian", "Vegan", "Pescatarian", "Halal", "Kosher", "Gluten-
 export default function OnboardingPage() {
   const router = useRouter();
   const toast = useToast();
-  const { data, updateProfile } = useStore();
+  const { data, updateProfile, actor } = useStore();
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState(1);
   const [d, setD] = useState<Draft>(() => (data.profile.intake ? { ...DEFAULT, ...data.profile.intake } : DEFAULT));
@@ -184,8 +186,15 @@ export default function OnboardingPage() {
     <div className="flex min-h-[100svh] flex-col">
       <header className="mx-auto flex w-full max-w-2xl items-center justify-between px-5 pt-5">
         <Logo href="#" />
-        <span className="text-[13px] tabular text-muted">
-          {step + 1} of {STEPS.length}
+        <span className="flex items-center gap-4">
+          {isAdminEmail(actor?.email) && (
+            <Link href="/admin" className="text-[13px] font-medium text-ink">
+              Admin
+            </Link>
+          )}
+          <span className="text-[13px] tabular text-muted">
+            {step + 1} of {STEPS.length}
+          </span>
         </span>
       </header>
       <div className="mx-auto mt-4 w-full max-w-2xl px-5">

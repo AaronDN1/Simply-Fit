@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { LegalDocument, LegalSection } from "@/components/legal/document";
+import { LegalDocument, LegalSection, SupportEmail } from "@/components/legal/document";
 
 export const metadata: Metadata = { title: "Privacy policy" };
 
@@ -36,7 +36,7 @@ export default function PrivacyPage() {
       </LegalSection>
       <LegalSection title="How long we keep it">
         <p>
-          Data stays until you delete it. Settings can export a copy of your data or clear tracked logs. Deleting the account removes the sign-in user, and the database is set up to delete that user's rows with it. Local demo data stays in the browser until you clear the site data or delete the demo account.
+          Data stays until you delete it. Settings can export a copy of your data or clear tracked logs. Deleting the account removes the sign-in user, and the database is set up to delete that user's rows with it. Local demo data stays in the browser until you clear the site data or delete the demo account. If the account is disabled, sign-in stops, including those Settings controls. Where the law still gives you a copy or deletion, write to the support address in the contact section. The terms of service explain when an account can be ended.
         </p>
       </LegalSection>
       <LegalSection title="Age">
@@ -45,6 +45,11 @@ export default function PrivacyPage() {
       <LegalSection title="Security">
         <p>
           In the hosted app, each person's rows are protected by database rules that allow access only to that signed-in user. Traffic is encrypted in transit. No method of storage is perfect. Export or delete your account from Settings if you want your data out.
+        </p>
+      </LegalSection>
+      <LegalSection title="Contact">
+        <p>
+          Privacy questions, access requests, and anything else about your account go to <SupportEmail />. That is the support address and the main contact for Simply Fit.
         </p>
       </LegalSection>
       <LegalSection title="Changes">

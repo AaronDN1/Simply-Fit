@@ -7,8 +7,11 @@ import type { DataAdapter } from "./data/adapter";
 import { createLocalAdapter, writeLocalSnapshot } from "./data/local";
 import { createSupabaseAdapter } from "./data/supabase";
 import { getSupabaseBrowser } from "./supabase/client";
-import { authMode, getCurrentUser, type AuthUser } from "./auth";
+import { authMode, getCurrentUser, getSessionUser, type AuthUser } from "./auth";
 import { buildDemoSnapshot } from "./data/seed";
+import { isAdminEmail } from "./admin";
+import { writeImpersonation, type ImpersonationTarget } from "./impersonation";
+import { createAdminActAdapter } from "./data/admin-remote";
 
 type Status = "loading" | "signed_out" | "ready" | "error";
 
@@ -16,7 +19,11 @@ interface StoreValue {
   status: Status;
   error: string | null;
   mode: typeof authMode;
+  /** Account the app is currently showing. */
   user: AuthUser | null;
+  /** Account that signed in. Unchanged while an admin is impersonating. */
+  actor: AuthUser | null;
+  impersonating: boolean;
   data: Snapshot;
   updateProfile: (patch: Partial<Profile> | ((p: Profile) => Partial<Profile>)) => Promise<void>;
   saveFood: (e: FoodEntry) => Promise<void>;
@@ -29,6 +36,8 @@ interface StoreValue {
   clearData: () => Promise<void>;
   loadDemoData: () => Promise<void>;
   reload: () => Promise<void>;
+  beginImpersonation: (target: ImpersonationTarget) => Promise<void>;
+  endImpersonation: () => Promise<void>;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -63,6 +72,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [actor, setActor] = useState<AuthUser | null>(null);
+  const [impersonating, setImpersonating] = useState(false);
   const [data, setData] = useState<Snapshot>(EMPTY);
   const adapter = useRef<DataAdapter | null>(null);
   const dataRef = useRef(data);
@@ -70,15 +81,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const load = useCallback(async () => {
     try {
-      const u = await getCurrentUser();
-      setUser(u);
-      if (!u) {
+      const session = await getSessionUser();
+      setActor(session);
+      if (!session) {
+        writeImpersonation(null);
+        setUser(null);
+        setImpersonating(false);
         adapter.current = null;
         setStatus("signed_out");
         return;
       }
+      const viewing = await getCurrentUser();
+      const asSomeoneElse = Boolean(viewing && viewing.id !== session.id && isAdminEmail(session.email));
+      setUser(viewing);
+      setImpersonating(asSomeoneElse);
       const sb = getSupabaseBrowser();
-      adapter.current = sb ? createSupabaseAdapter(sb, u) : createLocalAdapter(u);
+      adapter.current = asSomeoneElse && viewing && sb ? createAdminActAdapter(viewing.id) : sb ? createSupabaseAdapter(sb, viewing ?? session) : createLocalAdapter(viewing ?? session);
       setData(await adapter.current.load());
       setStatus("ready");
     } catch (e) {
@@ -123,6 +141,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       error,
       mode: authMode,
       user,
+      actor,
+      impersonating,
       data,
       updateProfile: async (patch) => {
         const p = { ...dataRef.current.profile, ...(typeof patch === "function" ? patch(dataRef.current.profile) : patch) };
@@ -161,8 +181,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         await load();
       },
       reload: load,
+      beginImpersonation: async (target) => {
+        const session = await getSessionUser();
+        if (!session || !isAdminEmail(session.email)) throw new Error("Not allowed.");
+        if (session.id === target.id) throw new Error("You're already signed in as this account.");
+        writeImpersonation(target);
+        try {
+          await load();
+        } catch (e) {
+          writeImpersonation(null);
+          await load();
+          throw e instanceof Error ? e : new Error("Couldn't open that account.");
+        }
+      },
+      endImpersonation: async () => {
+        writeImpersonation(null);
+        await load();
+      },
     };
-  }, [status, error, user, data, mutate, load]);
+  }, [status, error, user, actor, impersonating, data, mutate, load]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
