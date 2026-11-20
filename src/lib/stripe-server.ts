@@ -1,5 +1,4 @@
 import "server-only";
-import { createHash } from "node:crypto";
 import Stripe from "stripe";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { readAccess } from "@/lib/admin";
@@ -14,17 +13,6 @@ function stripeSecret() {
   const compact = raw.replace(/[^A-Za-z0-9_]/g, "");
   const match = compact.match(/(?:sk|rk)_(?:test|live)_[A-Za-z0-9]{20,}/);
   return match?.[0] ?? "";
-}
-
-export function stripeKeyShape() {
-  const raw = process.env.STRIPE_SECRET_KEY ?? "";
-  const key = stripeSecret();
-  return {
-    len: key.length,
-    rawLen: raw.length,
-    kind: key.startsWith("sk_test_") ? "test" : key.startsWith("sk_live_") ? "live" : key.startsWith("rk_") ? "restricted" : "other",
-    fp: createHash("sha256").update(key).digest("hex").slice(0, 16),
-  };
 }
 
 export function getStripe() {

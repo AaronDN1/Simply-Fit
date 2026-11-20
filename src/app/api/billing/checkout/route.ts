@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getRequestUser, getSupabaseAdmin } from "@/lib/supabase/server";
-import { billingFailure, createCheckout, createPlanPortal, getStripe, publicOrigin, rememberCustomer, stripeKeyShape } from "@/lib/stripe-server";
+import { billingFailure, createCheckout, createPlanPortal, getStripe, publicOrigin, rememberCustomer } from "@/lib/stripe-server";
 import { readAccess } from "@/lib/admin";
 import { accountTier, readBilling } from "@/lib/billing";
 import type { Settings } from "@/lib/types";
@@ -24,11 +24,6 @@ function withFlag(path: string, flag: string) {
 }
 
 export async function POST(req: Request) {
-  if (req.headers.get("x-sf-diag") === "shape") {
-    const diagAuth = await getRequestUser(req);
-    if (!diagAuth.user) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
-    return NextResponse.json(stripeKeyShape());
-  }
   const auth = await getRequestUser(req);
   if (!auth.configured) return NextResponse.json({ error: "Subscriptions are available on the hosted app." }, { status: 400 });
   const stripe = getStripe();
