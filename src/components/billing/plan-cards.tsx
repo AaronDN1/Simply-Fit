@@ -132,6 +132,11 @@ export function BillingAssurance() {
   );
 }
 
+function billingError(message: string | undefined, fallback: string) {
+  if (!message || /(?:sk|rk)_(?:live|test)_|whsec_|\*{6,}/i.test(message)) return fallback;
+  return message;
+}
+
 export async function startPlan(plan: AccountTier, next: string) {
   const res = await fetch("/api/billing/checkout", {
     method: "POST",
@@ -139,7 +144,7 @@ export async function startPlan(plan: AccountTier, next: string) {
     body: JSON.stringify({ plan, next }),
   });
   const data = (await res.json().catch(() => null)) as { url?: string; error?: string } | null;
-  if (!res.ok || !data?.url) throw new Error(data?.error || "Couldn't open billing.");
+  if (!res.ok || !data?.url) throw new Error(billingError(data?.error, "Couldn't open billing."));
   window.location.assign(data.url);
 }
 
@@ -150,6 +155,6 @@ export async function startPaidCheckout(plan: PaidPlan, next: string) {
 export async function openBillingPortal() {
   const res = await fetch("/api/billing/portal", { method: "POST" });
   const data = (await res.json().catch(() => null)) as { url?: string; error?: string } | null;
-  if (!res.ok || !data?.url) throw new Error(data?.error || "Couldn't open the billing portal.");
+  if (!res.ok || !data?.url) throw new Error(billingError(data?.error, "Couldn't open the billing portal."));
   window.location.assign(data.url);
 }

@@ -6,11 +6,22 @@ import { PAID_PRICE_CENTS, PLAN_LOOKUP, UNLIMITED_PRICE_CENTS, type PaidPlan } f
 import type { AccountAccess, BillingState, Settings } from "@/lib/types";
 
 let stripe: Stripe | null = null;
+let stripeKeyUsed = "";
+
+function stripeSecret() {
+  const raw = process.env.STRIPE_SECRET_KEY ?? "";
+  const compact = raw.replace(/[^A-Za-z0-9_]/g, "");
+  const match = compact.match(/(?:sk|rk)_(?:test|live)_[A-Za-z0-9]{20,}/);
+  return match?.[0] ?? "";
+}
 
 export function getStripe() {
-  const key = process.env.STRIPE_SECRET_KEY?.trim();
+  const key = stripeSecret();
   if (!key) return null;
-  if (!stripe) stripe = new Stripe(key);
+  if (!stripe || stripeKeyUsed !== key) {
+    stripe = new Stripe(key);
+    stripeKeyUsed = key;
+  }
   return stripe;
 }
 
@@ -30,10 +41,19 @@ export function publicOrigin(requestUrl: string) {
 }
 
 export function billingFailure(error: unknown) {
-  const raw = error instanceof Error ? error.message : "Couldn't open billing.";
-  const safe = raw.replace(/(sk|rk)_(live|test)_[A-Za-z0-9]+/g, "[key]").replace(/whsec_[A-Za-z0-9]+/g, "[secret]").slice(0, 280);
-  console.error("[billing]", safe);
-  return safe;
+  const record = typeof error === "object" && error !== null ? (error as { type?: string; code?: string; message?: string }) : {};
+  console.error("[billing]", record.type || "error", record.code || "unknown");
+  const raw = record.message || (error instanceof Error ? error.message : "");
+  if (record.type === "StripeAuthenticationError" || /api key/i.test(raw) || /(?:sk|rk)_(?:live|test)_|\*{6,}|whsec_/i.test(raw)) {
+    return "Billing couldn't reach Stripe. Try again in a moment.";
+  }
+  const scrubbed = raw
+    .replace(/(?:sk|rk)_(?:live|test)_[\w*]*/gi, "")
+    .replace(/whsec_[\w*]*/gi, "")
+    .replace(/\*+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return scrubbed.slice(0, 180) || "Couldn't open billing.";
 }
 
 function integrationIdentifier() {
