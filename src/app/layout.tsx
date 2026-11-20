@@ -29,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {THEME_BOOT}
         </Script>
         <Script id="sw-reset" strategy="beforeInteractive">
-          {`(function(){if(!("serviceWorker"in navigator))return;navigator.serviceWorker.getRegistrations().then(function(regs){if(!regs.length)return;Promise.all(regs.map(function(r){return r.unregister()})).then(function(){if(navigator.serviceWorker.controller)location.reload()})})})();`}
+          {`(function(){if(!("serviceWorker"in navigator))return;navigator.serviceWorker.getRegistrations().then(function(regs){regs.forEach(function(reg){reg.unregister()})})})();`}
         </Script>
         <Providers>{children}</Providers>
       </body>
