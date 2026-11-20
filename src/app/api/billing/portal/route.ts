@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { getRequestUser, getSupabaseAdmin } from "@/lib/supabase/server";
-import { createPortal, getStripe } from "@/lib/stripe-server";
+import { billingFailure, createPortal, getStripe, publicOrigin } from "@/lib/stripe-server";
 import { readBilling } from "@/lib/billing";
 import type { Settings } from "@/lib/types";
+
+export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   const auth = await getRequestUser(req);
@@ -16,8 +18,12 @@ export async function POST(req: Request) {
   const customerId = readBilling((data.settings ?? {}) as Settings).customerId;
   if (!customerId) return NextResponse.json({ error: "There's no subscription on this account yet." }, { status: 400 });
 
-  const origin = process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin;
-  const url = await createPortal(customerId, `${origin}/settings`);
-  if (!url) return NextResponse.json({ error: "Couldn't open the billing portal." }, { status: 502 });
-  return NextResponse.json({ url });
+  try {
+    const origin = publicOrigin(req.url);
+    const url = await createPortal(customerId, `${origin}/settings`);
+    if (!url) return NextResponse.json({ error: "Couldn't open the billing portal." }, { status: 502 });
+    return NextResponse.json({ url });
+  } catch (error) {
+    return NextResponse.json({ error: billingFailure(error) }, { status: 502 });
+  }
 }

@@ -8,10 +8,32 @@ import type { AccountAccess, BillingState, Settings } from "@/lib/types";
 let stripe: Stripe | null = null;
 
 export function getStripe() {
-  const key = process.env.STRIPE_SECRET_KEY;
+  const key = process.env.STRIPE_SECRET_KEY?.trim();
   if (!key) return null;
   if (!stripe) stripe = new Stripe(key);
   return stripe;
+}
+
+export function publicOrigin(requestUrl: string) {
+  const requestOrigin = new URL(requestUrl).origin;
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
+  if (!configured) return requestOrigin;
+  try {
+    const host = new URL(configured).hostname;
+    const local = host === "localhost" || host === "127.0.0.1";
+    const requestLocal = requestOrigin.includes("localhost") || requestOrigin.includes("127.0.0.1");
+    if (local && !requestLocal) return requestOrigin;
+  } catch {
+    return requestOrigin;
+  }
+  return configured;
+}
+
+export function billingFailure(error: unknown) {
+  const raw = error instanceof Error ? error.message : "Couldn't open billing.";
+  const safe = raw.replace(/(sk|rk)_(live|test)_[A-Za-z0-9]+/g, "[key]").replace(/whsec_[A-Za-z0-9]+/g, "[secret]").slice(0, 280);
+  console.error("[billing]", safe);
+  return safe;
 }
 
 function integrationIdentifier() {

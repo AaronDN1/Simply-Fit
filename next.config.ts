@@ -33,6 +33,7 @@ const contentSecurityPolicy = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  serverExternalPackages: ["stripe"],
   async headers() {
     const headers = [
       { key: "X-Content-Type-Options", value: "nosniff" },

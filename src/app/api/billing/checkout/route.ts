@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getRequestUser, getSupabaseAdmin } from "@/lib/supabase/server";
-import { createCheckout, createPlanPortal, getStripe, rememberCustomer } from "@/lib/stripe-server";
+import { billingFailure, createCheckout, createPlanPortal, getStripe, publicOrigin, rememberCustomer } from "@/lib/stripe-server";
 import { readAccess } from "@/lib/admin";
 import { accountTier, readBilling } from "@/lib/billing";
 import type { Settings } from "@/lib/types";
+
+export const runtime = "nodejs";
 
 const Body = z.object({
   plan: z.enum(["free", "paid", "unlimited"]),
@@ -30,7 +32,7 @@ export async function POST(req: Request) {
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Choose a plan." }, { status: 400 });
 
-  const origin = process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin;
+  const origin = publicOrigin(req.url);
   const next = safePath(parsed.data.next, "/settings");
 
   if (!auth.user) return NextResponse.json({ error: "Create an account before choosing a paid plan." }, { status: 401 });
@@ -49,48 +51,58 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "That's already your plan." }, { status: 409 });
   }
 
-  const billing = readBilling(settings);
-  let customerId = billing.customerId;
-  if (customerId) {
-    const existing = await stripe.customers.retrieve(customerId);
-    if (existing.deleted) customerId = null;
-  }
-  if (!customerId && parsed.data.plan !== "free") {
-    const customer = await stripe.customers.create({
-      email: (data.email as string) || auth.user.email || undefined,
-      name: (data.display_name as string) || undefined,
-      metadata: { user_id: auth.user.id },
-    });
-    customerId = customer.id;
-    await rememberCustomer(auth.user.id, customerId);
-  }
+  try {
+    const billing = readBilling(settings);
+    let customerId = billing.customerId;
+    if (customerId) {
+      try {
+        const existing = await stripe.customers.retrieve(customerId);
+        if (existing.deleted) customerId = null;
+      } catch (error) {
+        const missing = typeof error === "object" && error !== null && "code" in error && error.code === "resource_missing";
+        if (!missing) throw error;
+        customerId = null;
+      }
+    }
+    if (!customerId && parsed.data.plan !== "free") {
+      const customer = await stripe.customers.create({
+        email: (data.email as string) || auth.user.email || undefined,
+        name: (data.display_name as string) || undefined,
+        metadata: { user_id: auth.user.id },
+      });
+      customerId = customer.id;
+      await rememberCustomer(auth.user.id, customerId);
+    }
 
-  const live = customerId
-    ? await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 10 }).then((subs) =>
-        subs.data.some((item) => item.status === "active" || item.status === "trialing" || item.status === "past_due")
-      )
-    : false;
+    const live = customerId
+      ? await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 10 }).then((subs) =>
+          subs.data.some((item) => item.status === "active" || item.status === "trialing" || item.status === "past_due")
+        )
+      : false;
 
-  if (live && customerId) {
-    const portal = await createPlanPortal({
+    if (live && customerId) {
+      const portal = await createPlanPortal({
+        customerId,
+        plan: parsed.data.plan,
+        returnUrl: `${origin}${withFlag("/settings", "updated")}`,
+      });
+      if (!portal) return NextResponse.json({ error: "Couldn't open the billing portal." }, { status: 502 });
+      return NextResponse.json({ url: portal });
+    }
+
+    if (parsed.data.plan === "free") {
+      return NextResponse.json({ url: `${origin}/signup` });
+    }
+
+    const url = await createCheckout({
       customerId,
       plan: parsed.data.plan,
-      returnUrl: `${origin}${withFlag("/settings", "updated")}`,
+      successUrl: `${origin}${withFlag(next, "success")}`,
+      cancelUrl: `${origin}${withFlag(next, "cancel")}`,
     });
-    if (!portal) return NextResponse.json({ error: "Couldn't open the billing portal." }, { status: 502 });
-    return NextResponse.json({ url: portal });
+    if (!url) return NextResponse.json({ error: "Couldn't open secure checkout." }, { status: 502 });
+    return NextResponse.json({ url });
+  } catch (error) {
+    return NextResponse.json({ error: billingFailure(error) }, { status: 502 });
   }
-
-  if (parsed.data.plan === "free") {
-    return NextResponse.json({ url: `${origin}/signup` });
-  }
-
-  const url = await createCheckout({
-    customerId,
-    plan: parsed.data.plan,
-    successUrl: `${origin}${withFlag(next, "success")}`,
-    cancelUrl: `${origin}${withFlag(next, "cancel")}`,
-  });
-  if (!url) return NextResponse.json({ error: "Couldn't open secure checkout." }, { status: 502 });
-  return NextResponse.json({ url });
 }
