@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useInView } from "motion/react";
-import { Activity, ArrowRight, Check, Dumbbell, Footprints, HeartPulse, Moon, Scale, Smartphone, Sparkles, Timer } from "lucide-react";
+import { Activity, ArrowRight, Check, Dumbbell, Footprints, HeartPulse, Moon, Scale, Sparkles, Timer } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { Slider } from "@/components/ui/field";
 import { MiniBars, Sparkline } from "@/components/ui/data";
@@ -301,7 +301,7 @@ export function ProgressSection() {
   );
 }
 
-/* ---------------- Health syncing ---------------- */
+/* ---------------- Activity logging ---------------- */
 
 export function HealthSection() {
   return (
@@ -310,7 +310,7 @@ export function HealthSection() {
         <SectionHead
           kicker="Activity, logged simply"
           title={<>Steps, sleep, and cardio, in the same place.</>}
-          body="Log them in a few taps. This website doesn't read Apple Health, Health Connect, or a smart scale. A future phone app will be able to, after you allow it. Until then, nothing is pulled from your phone."
+          body="Log them in a few taps. Steps, sleep, cardio, and weight sit next to your plan, and you type the numbers yourself."
         />
         <Reveal delay={0.1}>
           <div className="mx-auto w-full max-w-sm rounded-[36px] border border-line bg-surface p-3 shadow-[var(--shadow-lift)]">
@@ -340,9 +340,6 @@ export function HealthSection() {
                   </motion.div>
                 ))}
               </div>
-              <p className="mt-4 flex items-center justify-center gap-1.5 text-[12px] text-muted">
-                <Smartphone className="size-3.5" /> Phone sync comes later, and only if you allow it
-              </p>
             </div>
           </div>
         </Reveal>

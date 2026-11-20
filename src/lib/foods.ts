@@ -310,8 +310,18 @@ export function estimateFromConversation(messages: { role: "user" | "assistant";
   if (prepItems.length && !PREP_ANSWERED.test(allText) && userMsgs.length < 3)
     questions.push(`Any oil, butter, or sauce on the ${listNames(prepItems)}?`);
 
-  if (questions.length) {
+  if (questions.length && userMsgs.length < 2) {
     return { status: "needs_info", reply: questions.slice(0, 2).join(" "), items: [], meal };
+  }
+
+  for (const it of items) {
+    if (!it.state) it.state = "cooked";
+    if (!it.grams && it.food) {
+      const unit = it.food.countUnit;
+      const per = (unit && it.food.units[unit]) || it.food.units.serving || it.food.units.unit || it.food.units.cup || 100;
+      it.grams = per;
+      if (!it.qtyLabel) it.qtyLabel = "typical serving";
+    }
   }
 
   const out: EstimateItem[] = items.map((it) => {
@@ -322,7 +332,9 @@ export function estimateFromConversation(messages: { role: "user" | "assistant";
   });
 
   const total = out.reduce((s, x) => s + x.calories, 0);
-  let reply = `Here's my estimate — about ${total} calories. Review it and log when it looks right.`;
+  let reply = out.some((item) => item.quantity === "typical serving")
+    ? `I used a typical serving where the amount wasn't clear. About ${total} calories. Review it before you log.`
+    : `Here's my estimate — about ${total} calories. Review it and log when it looks right.`;
   if (unknown.length) reply += ` I left out “${unknown.slice(0, 2).join("”, “")}” since I couldn't estimate it reliably — you can add it manually.`;
   return { status: "ready", reply, items: out, meal };
 }

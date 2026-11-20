@@ -9,7 +9,7 @@ import { CardioForm, CheckInForm, SleepForm, StepsForm } from "@/components/app/
 import { useToast } from "@/components/ui/toast";
 import { useStore } from "@/lib/store";
 import { average, cardioMinutesOn, cardioMinutesWeek, sleepSeries, stepSeries } from "@/lib/stats";
-import { nativeBridge } from "@/lib/health";
+import { HEALTH_SYNC_UI, nativeBridge } from "@/lib/health";
 import { readinessAdvice, readinessScore } from "@/lib/plan";
 import { cn, formatDay, lastNDays, relativeDayLabel, todayISO } from "@/lib/utils";
 
@@ -36,7 +36,7 @@ export default function ActivityPage() {
     <div>
       <PageHeader title="Activity" description="Cardio, steps, sleep, and recovery — the work outside the gym that makes the plan work." />
 
-      {!nativePlatform && (
+      {HEALTH_SYNC_UI && !nativePlatform && (
         <Card className="mb-5 flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <p className="flex items-start gap-3 text-[14px] text-ink-soft">
             <Link2 className="mt-0.5 size-4 shrink-0 text-accent" />
@@ -57,7 +57,7 @@ export default function ActivityPage() {
           />
           <MiniBars values={steps} target={plan.levers.stepTarget} labels={labels} height={96} />
           <p className="mb-2 mt-5 text-[13px] font-medium text-ink-soft">
-            Today {nativePlatform && today?.stepsSource && today.stepsSource !== "manual" && <span className="font-normal text-muted">· synced</span>}
+            Today {HEALTH_SYNC_UI && nativePlatform && today?.stepsSource && today.stepsSource !== "manual" && <span className="font-normal text-muted">· synced</span>}
           </p>
           <StepsForm key={`s${today?.steps}`} />
         </Card>
@@ -80,7 +80,7 @@ export default function ActivityPage() {
                     <span className="block truncate">{c.activity}</span>
                     <span className="block text-[12px] text-muted">
                       {relativeDayLabel(c.date)} · {c.intensity}
-                      {nativePlatform && c.source !== "manual" && " · synced"}
+                      {HEALTH_SYNC_UI && nativePlatform && c.source !== "manual" && " · synced"}
                     </span>
                   </span>
                   <span className="tabular text-ink-soft">{c.minutes} min</span>

@@ -8,7 +8,14 @@
  * which reads HealthKit / Health Connect on-device. Background syncs from the native
  * side go to POST /api/health/ingest with the user's Supabase access token.
  * On the plain web, manual logging is used instead.
+ *
+ * The website never shows this. HEALTH_SYNC_UI stays false until a phone app
+ * can actually read HealthKit or Health Connect. The bridge, settings UI, and
+ * ingest route stay in the repo for that later build.
  */
+
+/** When false, no screen mentions phone, watch, Apple Health, or Health Connect sync. */
+export const HEALTH_SYNC_UI = false;
 
 export type HealthPlatform = "apple_health" | "health_connect";
 

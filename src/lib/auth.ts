@@ -77,8 +77,9 @@ export async function getSessionUser(): Promise<AuthUser | null> {
   }
   const sb = getSupabaseBrowser();
   if (sb) {
-    const { data } = await sb.auth.getUser();
-    const u = data.user;
+    // Read the cookie session. getUser() would refresh the token, and the proxy already does that on navigation.
+    const { data } = await sb.auth.getSession();
+    const u = data.session?.user;
     if (!u) return null;
     return { id: u.id, email: u.email ?? "", name: (u.user_metadata?.full_name as string) ?? (u.user_metadata?.name as string) ?? "" };
   }

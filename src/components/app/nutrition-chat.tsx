@@ -71,7 +71,7 @@ export function NutritionChat({ date = todayISO(), remaining }: { date?: string;
           remainingCalories: remaining,
           localTime: new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
         },
-      });
+      }, 70_000);
       setMessages((m) => [...m, { id: uid(), role: "assistant", content: res.reply }]);
       if (res.status === "ready" && res.items.length) setEstimate({ items: res.items, meal: res.meal ?? mealForTime(), mealName: res.mealName, engine: res.engine });
     } catch (e) {

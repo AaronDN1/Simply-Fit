@@ -25,6 +25,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${geist.variable} ${serif.variable}`} suppressHydrationWarning>
       <body>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){if(!("serviceWorker"in navigator))return;navigator.serviceWorker.getRegistrations().then(function(regs){if(!regs.length)return;Promise.all(regs.map(function(r){return r.unregister()})).then(function(){if(navigator.serviceWorker.controller)location.reload()})})})();`,
+          }}
+        />
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -301,7 +301,7 @@ function AiSplitSheet({ open, onClose, current, onApply }: { open: boolean; onCl
         currentSplit: summary,
         useCloud: cloud,
         attachments: cloud ? currentAttachments : undefined,
-      });
+      }, 70_000);
       setResult(res);
       setMessages((m) => [...m, { role: "user", content: userMessage }, { role: "assistant", content: res.reply }]);
       setText("");

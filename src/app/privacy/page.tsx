@@ -23,9 +23,6 @@ export default function PrivacyPage() {
         <p>
           When cloud AI is on, the text, photos, and voice notes you submit for a meal estimate or a workout draft are sent to OpenAI, along with your diet preferences and allergies. When cloud AI is off, those requests stay with the built-in estimator and are not sent to OpenAI.
         </p>
-        <p>
-          This website does not read Apple Health, Health Connect, or a smart scale. A future phone app could send steps, sleep, workouts, and weight that you explicitly allow. Until that app exists, those numbers are whatever you type in.
-        </p>
       </LegalSection>
       <LegalSection title="How we use it">
         <p>We use this information to build and show your plan, keep your log, estimate meals, draft workouts, and remember your settings. We do not sell personal information, and the app does not run advertising or product-analytics cookies.</p>

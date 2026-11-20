@@ -27,7 +27,8 @@ function GoogleIcon() {
 export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") || "/today";
+  const rawNext = params.get("next") || "/today";
+  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/today";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -49,12 +50,12 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
         const { needsConfirmation } = await signUpWithEmail(email.trim(), password, name.trim());
         sessionStorage.setItem(LEGAL_ACCEPT_KEY, LEGAL_VERSION);
         if (needsConfirmation) return setSent(true);
-        router.replace("/onboarding");
-      } else {
-        await signInWithEmail(email.trim(), password, remember);
-        router.replace(next);
+        window.location.assign("/onboarding");
+        return;
       }
-      router.refresh();
+      await signInWithEmail(email.trim(), password, remember);
+      window.location.assign(next);
+      return;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {

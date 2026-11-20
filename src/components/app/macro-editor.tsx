@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PencilLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
-import { applyMacroTargets, caloriesForMacros, calorieFloor, KCAL_PER_KG, rateBounds } from "@/lib/plan";
+import { aggressiveGainMessage, aggressiveLossMessage, applyMacroTargets, caloriesForMacros, exceedsRecommendedGain, exceedsRecommendedLoss, MAX_CALORIES, MIN_CALORIES } from "@/lib/plan";
 import { formatRate } from "@/lib/units";
 import type { Intake, Plan, Settings } from "@/lib/types";
 
@@ -29,12 +29,13 @@ export function MacroEditor({
 
   const calories = useMemo(() => caloriesForMacros(values), [values]);
   const preview = useMemo(() => applyMacroTargets(intake, plan, values, units), [intake, plan, units, values]);
-  const floor = calorieFloor(intake);
-  const maxCalories = plan.maintenanceCalories + (rateBounds(intake).maxGain * KCAL_PER_KG) / 7;
+  const fastLoss = exceedsRecommendedLoss(preview.levers.weeklyRateKg, units);
+  const fastGain = exceedsRecommendedGain(preview.levers.weeklyRateKg, intake, units);
+  const paceNote = fastLoss ? aggressiveLossMessage(units) : fastGain ? aggressiveGainMessage(intake, units) : null;
   const invalid =
     !Object.values(values).every((value) => Number.isFinite(value) && value >= 0) ||
-    calories < floor ||
-    calories > maxCalories;
+    calories < MIN_CALORIES ||
+    calories > MAX_CALORIES;
 
   async function apply() {
     if (invalid) return;
@@ -71,15 +72,20 @@ export function MacroEditor({
             </div>
             <div className="mt-2 flex items-center justify-between">
               <span className="text-muted">Estimated pace</span>
-              <span className="font-semibold tabular">{formatRate(preview.levers.weeklyRateKg, units)} / week</span>
+              <span className="font-semibold tabular">{formatRate(preview.levers.weeklyRateKg, units)}</span>
             </div>
           </div>
           <p className="text-[12px] leading-relaxed text-muted">
             Calories use 4 kcal/g for protein and carbs, and 9 kcal/g for fat. This changes your projected rate while your activity stays the same.
           </p>
+          {paceNote && (
+            <p className="rounded-r-2xl border-l-4 border-accent bg-accent-soft px-3 py-2 text-[12px] leading-relaxed text-accent-strong">
+              {paceNote}
+            </p>
+          )}
           {invalid && (
             <p className="rounded-xl bg-honey-soft px-3 py-2 text-[12px] text-honey">
-              Keep the macro total between {Math.round(floor).toLocaleString()} and {Math.round(maxCalories).toLocaleString()} kcal so the plan stays within its safe projected rate.
+              Keep the macro total between {MIN_CALORIES.toLocaleString()} and {MAX_CALORIES.toLocaleString()} kcal.
             </p>
           )}
           <Button className="w-full" size="lg" disabled={invalid} loading={saving} onClick={apply}>

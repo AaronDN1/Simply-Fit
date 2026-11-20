@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useRef, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
@@ -11,12 +11,12 @@ import { Slider } from "@/components/ui/field";
 import { AnimatedNumber } from "@/components/ui/data";
 import { useStore } from "@/lib/store";
 import { useToast } from "@/components/ui/toast";
-import { applyMacroTargets, buildPlan, calorieFloor, defaultLevers, explainTradeoff, GOAL_LABEL, maintenanceFrom, energyBreakdown, MacroTargets, rateBounds, rateForCalories } from "@/lib/plan";
-import { displayWeight, formatRate } from "@/lib/units";
+import { aggressiveGainMessage, aggressiveLossMessage, applyMacroTargets, buildPlan, defaultLevers, exceedsRecommendedGain, exceedsRecommendedLoss, goalDirection, GOAL_LABEL, MAX_CALORIES, MIN_CALORIES, MacroTargets, rateBounds, rateForCalories } from "@/lib/plan";
+import { displayWeight, formatRate, lbToKg } from "@/lib/units";
 import { recommendedSplit } from "@/lib/workouts";
 import { MacroEditor } from "@/components/app/macro-editor";
-import type { Plan, PlanLevers } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import type { Plan, PlanLevers, Settings } from "@/lib/types";
+import { clamp, cn, round } from "@/lib/utils";
 
 function PlanView() {
   const params = useSearchParams();
@@ -51,16 +51,35 @@ function PlanView() {
     () => (macroOverride ? applyMacroTargets(intake!, basePreview, macroOverride, units) : basePreview),
     [intake, basePreview, macroOverride, units]
   );
-  const dirty = JSON.stringify(draft) !== JSON.stringify(plan!.levers) || macroOverride !== null;
-  const tradeoffs = useMemo(() => (dirty ? explainTradeoff(intake!, plan!, preview, units) : []), [dirty, intake, plan, preview, units]);
+  const leversDirty = JSON.stringify(draft) !== JSON.stringify(plan!.levers) || macroOverride !== null;
 
   if (!intake || !plan) return null;
 
   const bounds = rateBounds(intake);
-  const maintenance = maintenanceFrom(energyBreakdown(intake, draft));
-  const floor = calorieFloor(intake);
-  const calMin = Math.max(floor, Math.round((maintenance + (bounds.maxLoss * 7700) / 7) / 10) * 10);
-  const calMax = Math.round((maintenance + (bounds.maxGain * 7700) / 7) / 10) * 10;
+  const calMin = MIN_CALORIES;
+  const calMax = MAX_CALORIES;
+  const paceMin = Math.round(displayWeight(bounds.maxLoss, units, 2) * 100);
+  const paceMax = Math.round(displayWeight(bounds.maxGain, units, 2) * 100);
+  const paceThumb = clamp(Math.round(displayWeight(preview.levers.weeklyRateKg, units, 2) * 100), paceMin, paceMax);
+  const fastLoss = exceedsRecommendedLoss(preview.levers.weeklyRateKg, units);
+  const fastGain = exceedsRecommendedGain(preview.levers.weeklyRateKg, intake, units);
+  const paceNote = fastLoss ? aggressiveLossMessage(units) : fastGain ? aggressiveGainMessage(intake, units) : null;
+  const targetsDirty =
+    preview.calorieTarget !== plan.calorieTarget ||
+    preview.proteinG !== plan.proteinG ||
+    preview.carbsG !== plan.carbsG ||
+    preview.fatG !== plan.fatG ||
+    Math.abs(preview.levers.weeklyRateKg - plan.levers.weeklyRateKg) > 0.001;
+  const dirty = leversDirty || targetsDirty;
+
+  function setActivity(patch: Partial<Pick<PlanLevers, "stepTarget" | "cardioMinutesPerWeek">>) {
+    const calories = preview.calorieTarget;
+    setMacroOverride(null);
+    setDraft((d) => {
+      const next = { ...d, ...patch };
+      return { ...next, weeklyRateKg: Math.round(rateForCalories(intake, next, calories) * 1000) / 1000 };
+    });
+  }
 
   async function save() {
     setSaving(true);
@@ -143,6 +162,7 @@ function PlanView() {
                 <MacroEditor plan={preview} intake={intake} units={units} onApply={saveMacros} />
               </div>
             </div>
+            <PaceNote message={paceNote} />
             <div className="mt-6 grid grid-cols-3 gap-3">
               {[
                 { label: "Protein", g: shown.proteinG, color: "bg-accent" },
@@ -203,7 +223,7 @@ function PlanView() {
               title="Adjust your plan"
               description="Change what matters to you. We'll balance the rest."
               action={
-                dirty ? (
+                leversDirty ? (
                     <button onClick={() => { setMacroOverride(null); setDraft(plan.levers); }} className="flex items-center gap-1 text-[13px] text-muted hover:text-ink">
                     <RotateCcw className="size-3.5" /> Reset
                   </button>
@@ -217,7 +237,21 @@ function PlanView() {
             <div className="space-y-6">
               <Lever
                 label="Calories"
-                value={`${preview.calorieTarget.toLocaleString()} kcal`}
+                value={
+                  <ClickToEdit
+                    display={preview.calorieTarget.toLocaleString()}
+                    editValue={String(preview.calorieTarget)}
+                    suffix="kcal"
+                    ariaLabel="Type daily calories"
+                    onCommit={(raw) => {
+                      const n = Number(raw);
+                      if (!Number.isFinite(n)) return;
+                      const c = clamp(round(n, 10), calMin, calMax);
+                      setMacroOverride(null);
+                      setDraft((d) => ({ ...d, weeklyRateKg: Math.round(rateForCalories(intake, d, c) * 1000) / 1000 }));
+                    }}
+                  />
+                }
                 left="Less food"
                 right="More food"
                 slider={
@@ -234,34 +268,75 @@ function PlanView() {
                   />
                 }
               />
+              <div>
+                <Lever
+                  label="Pace"
+                  value={
+                    <PaceEdit
+                      kgPerWeek={preview.levers.weeklyRateKg}
+                      units={units}
+                      maxLossKg={bounds.maxLoss}
+                      maxGainKg={bounds.maxGain}
+                      fallbackSign={goalDirection(intake.goal) || -1}
+                      onCommit={(kg) => {
+                        setMacroOverride(null);
+                        setDraft((d) => ({ ...d, weeklyRateKg: clamp(kg, bounds.maxLoss, bounds.maxGain) }));
+                      }}
+                    />
+                  }
+                  left="Lose faster"
+                  right="Gain faster"
+                  slider={
+                    <Slider
+                      ariaLabel="Weekly weight change"
+                      min={paceMin}
+                      max={paceMax}
+                      step={5}
+                      value={paceThumb}
+                      onChange={(v) => {
+                        setMacroOverride(null);
+                        const kg = units.weight === "lb" ? lbToKg(v / 100) : v / 100;
+                        setDraft((d) => ({ ...d, weeklyRateKg: clamp(kg, bounds.maxLoss, bounds.maxGain) }));
+                      }}
+                    />
+                  }
+                />
+                <div className="lg:hidden">
+                  <PaceNote message={paceNote} />
+                </div>
+              </div>
               <Lever
-                label="Pace"
-                value={formatRate(draft.weeklyRateKg, units)}
-                left="Lose faster"
-                right="Gain faster"
-                slider={
-                  <Slider
-                    ariaLabel="Weekly weight change"
-                    min={Math.round(displayWeight(bounds.maxLoss, units, 2) * 100)}
-                    max={Math.round(displayWeight(bounds.maxGain, units, 2) * 100)}
-                    step={5}
-                    value={Math.round(displayWeight(draft.weeklyRateKg, units, 2) * 100)}
-                    onChange={(v) => {
-                      setMacroOverride(null);
-                      setDraft((d) => ({ ...d, weeklyRateKg: units.weight === "lb" ? (v / 100) * 0.45359237 : v / 100 }));
+                label="Daily steps"
+                value={
+                  <ClickToEdit
+                    display={draft.stepTarget.toLocaleString()}
+                    editValue={String(draft.stepTarget)}
+                    ariaLabel="Type daily steps"
+                    onCommit={(raw) => {
+                      const n = Number(raw);
+                      if (!Number.isFinite(n)) return;
+                      setActivity({ stepTarget: clamp(round(n, 500), 3000, 20000) });
                     }}
                   />
                 }
-              />
-              <Lever
-                label="Daily steps"
-                value={draft.stepTarget.toLocaleString()}
-                slider={<Slider ariaLabel="Daily steps" min={3000} max={20000} step={500} value={draft.stepTarget} onChange={(v) => { setMacroOverride(null); setDraft((d) => ({ ...d, stepTarget: v })); }} />}
+                slider={<Slider ariaLabel="Daily steps" min={3000} max={20000} step={500} value={draft.stepTarget} onChange={(v) => setActivity({ stepTarget: v })} />}
               />
               <Lever
                 label="Cardio per week"
-                value={`${draft.cardioMinutesPerWeek} min`}
-                slider={<Slider ariaLabel="Cardio minutes" min={0} max={420} step={10} value={draft.cardioMinutesPerWeek} onChange={(v) => { setMacroOverride(null); setDraft((d) => ({ ...d, cardioMinutesPerWeek: v })); }} />}
+                value={
+                  <ClickToEdit
+                    display={String(draft.cardioMinutesPerWeek)}
+                    editValue={String(draft.cardioMinutesPerWeek)}
+                    suffix="min"
+                    ariaLabel="Type weekly cardio minutes"
+                    onCommit={(raw) => {
+                      const n = Number(raw);
+                      if (!Number.isFinite(n)) return;
+                      setActivity({ cardioMinutesPerWeek: clamp(round(n, 10), 0, 420) });
+                    }}
+                  />
+                }
+                slider={<Slider ariaLabel="Cardio minutes" min={0} max={420} step={10} value={draft.cardioMinutesPerWeek} onChange={(v) => setActivity({ cardioMinutesPerWeek: v })} />}
               />
               <Lever
                 label="Training days"
@@ -270,21 +345,6 @@ function PlanView() {
               />
             </div>
 
-            <AnimatePresence initial={false}>
-              {tradeoffs.length > 0 && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                  <div className="mt-6 space-y-2 rounded-2xl bg-accent-tint p-4">
-                    <p className="text-[12px] font-medium uppercase tracking-[0.1em] text-accent">The tradeoff</p>
-                    {tradeoffs.map((t, i) => (
-                      <motion.p key={t} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.05 }} className="text-[14px] leading-relaxed text-accent-strong">
-                        {t}
-                      </motion.p>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
             <Button className="mt-6 w-full" size="lg" disabled={!dirty} loading={saving} onClick={save}>
               Save changes
             </Button>
@@ -292,6 +352,145 @@ function PlanView() {
         </div>
       </div>
     </>
+  );
+}
+
+function ClickToEdit({
+  display,
+  editValue,
+  prefix,
+  suffix,
+  editPrefix,
+  editSuffix,
+  ariaLabel,
+  onCommit,
+}: {
+  display: string;
+  editValue: string;
+  prefix?: string;
+  suffix?: string;
+  editPrefix?: string;
+  editSuffix?: string;
+  ariaLabel: string;
+  onCommit: (raw: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(editValue);
+  const skip = useRef(false);
+
+  function open() {
+    skip.current = false;
+    setText(editValue);
+    setEditing(true);
+  }
+
+  function commit(raw = text) {
+    if (skip.current) {
+      skip.current = false;
+      return;
+    }
+    const cleaned = raw.trim().replace(/,/g, "");
+    if (cleaned !== editValue) onCommit(cleaned);
+    setEditing(false);
+  }
+
+  const before = editing ? (editPrefix ?? prefix) : prefix;
+  const after = editing ? (editSuffix ?? suffix) : suffix;
+
+  return (
+    <span className="inline-flex items-baseline gap-1">
+      {before && <span>{before}</span>}
+      {editing ? (
+        <input
+          autoFocus
+          inputMode="decimal"
+          aria-label={ariaLabel}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onFocus={(e) => e.currentTarget.select()}
+          onBlur={(e) => commit(e.currentTarget.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commit(e.currentTarget.value);
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              skip.current = true;
+              setEditing(false);
+            }
+          }}
+          style={{ width: `${Math.max(3, text.length + 1)}ch` }}
+          className="rounded-md border border-line bg-surface px-1.5 py-0.5 text-right text-[14px] tabular text-ink outline-none focus:border-accent"
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={open}
+          className="rounded-sm underline decoration-dotted decoration-faint/80 underline-offset-[3px] hover:text-ink hover:decoration-ink"
+          aria-label={ariaLabel}
+        >
+          {display}
+        </button>
+      )}
+      {after && <span>{after}</span>}
+    </span>
+  );
+}
+
+function PaceEdit({
+  kgPerWeek,
+  units,
+  maxLossKg,
+  maxGainKg,
+  fallbackSign,
+  onCommit,
+}: {
+  kgPerWeek: number;
+  units: Settings["units"];
+  maxLossKg: number;
+  maxGainKg: number;
+  fallbackSign: -1 | 1;
+  onCommit: (kg: number) => void;
+}) {
+  const digits = units.weight === "lb" ? 1 : 2;
+  const steady = Math.abs(displayWeight(kgPerWeek, units, digits)) < 0.05;
+  const sign: -1 | 1 = kgPerWeek < 0 ? -1 : kgPerWeek > 0 ? 1 : fallbackSign;
+  const amount = steady ? 0 : Math.abs(displayWeight(kgPerWeek, units, digits));
+  const word = sign < 0 ? "Lose" : "Gain";
+  const unitLabel = `${units.weight}/week`;
+  const maxMagnitude = Math.abs(displayWeight(sign < 0 ? maxLossKg : maxGainKg, units, digits));
+
+  return (
+    <ClickToEdit
+      display={steady ? "Hold steady" : String(amount)}
+      editValue={String(amount)}
+      prefix={steady ? undefined : word}
+      suffix={steady ? undefined : unitLabel}
+      editPrefix={word}
+      editSuffix={unitLabel}
+      ariaLabel="Type weekly weight change"
+      onCommit={(raw) => {
+        const n = Math.abs(Number(raw));
+        if (!Number.isFinite(n)) return;
+        const magnitude = clamp(n, 0, maxMagnitude);
+        const kg = units.weight === "lb" ? lbToKg(magnitude) : magnitude;
+        onCommit(sign < 0 ? -kg : kg);
+      }}
+    />
+  );
+}
+
+function PaceNote({ message }: { message: string | null }) {
+  return (
+    <AnimatePresence initial={false}>
+      {message && (
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+          <p className="mt-3 rounded-r-2xl border-l-4 border-accent bg-accent-soft px-3.5 py-2.5 text-[13px] leading-relaxed text-accent-strong">
+            {message}
+          </p>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -307,10 +506,10 @@ function Target({ icon, label, value }: { icon: React.ReactNode; label: string; 
   );
 }
 
-function Lever({ label, value, slider, left, right }: { label: string; value: string; slider: React.ReactNode; left?: string; right?: string }) {
+function Lever({ label, value, slider, left, right }: { label: string; value: React.ReactNode; slider: React.ReactNode; left?: string; right?: string }) {
   return (
     <div>
-      <div className="mb-0.5 flex items-baseline justify-between">
+      <div className="mb-0.5 flex items-baseline justify-between gap-3">
         <span className="text-[14px] font-medium">{label}</span>
         <span className="text-[14px] tabular text-ink-soft">{value}</span>
       </div>

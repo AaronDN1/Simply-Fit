@@ -31,15 +31,27 @@ export async function proxy(request: NextRequest) {
     const to = request.nextUrl.clone();
     to.pathname = "/login";
     to.search = `?next=${encodeURIComponent(path)}`;
-    return NextResponse.redirect(to);
+    return redirectWithSession(to, response);
   }
   if (user && AUTH_PAGES.includes(path)) {
     const to = request.nextUrl.clone();
     to.pathname = "/today";
     to.search = "";
-    return NextResponse.redirect(to);
+    return redirectWithSession(to, response);
   }
   return response;
+}
+
+/** A fresh redirect drops the session cookies Supabase just refreshed. Copy them over. */
+function redirectWithSession(to: URL, session: NextResponse) {
+  const redirect = NextResponse.redirect(to);
+  const setCookies = session.headers.getSetCookie?.() ?? [];
+  if (setCookies.length > 0) {
+    for (const cookie of setCookies) redirect.headers.append("set-cookie", cookie);
+    return redirect;
+  }
+  for (const cookie of session.cookies.getAll()) redirect.cookies.set(cookie);
+  return redirect;
 }
 
 export const config = {

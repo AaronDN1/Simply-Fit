@@ -35,7 +35,11 @@ export function AppGate({ children }: { children: React.ReactNode }) {
   const sessionAccepted = mounted && window.sessionStorage.getItem(LEGAL_ACCEPT_KEY) === LEGAL_VERSION;
 
   useEffect(() => {
-    if (status === "signed_out") router.replace(`/login?next=${encodeURIComponent(path)}`);
+    if (status === "signed_out") {
+      const login = `/login?next=${encodeURIComponent(path)}`;
+      if (window.location.pathname !== "/login") window.location.assign(login);
+      return;
+    }
     else if (status === "ready" && accepted && !onboarded && !onOnboarding && !(adminRoute && actorIsAdmin) && !disabled) {
       if (actorIsAdmin && consumeAdminReturn()) router.replace("/admin");
       else router.replace("/onboarding");

@@ -100,19 +100,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setData(await adapter.current.load());
       setStatus("ready");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong loading your data.");
+      const message = e instanceof Error ? e.message : "Something went wrong loading your data.";
+      setError(message.includes("<html") || message.includes("<!DOCTYPE") ? "Couldn't reach your account. Check the connection and try again." : message);
       setStatus("error");
     }
   }, []);
 
   useEffect(() => {
-    load();
+    let alive = true;
+    const run = () => {
+      if (alive) void load();
+    };
+    run();
     const sb = getSupabaseBrowser();
-    if (!sb) return;
+    if (!sb) return () => {
+      alive = false;
+    };
+    // Defer past the auth lock. Calling load() inside this callback deadlocks getSession/getUser and the screen stays on the logo.
     const { data: sub } = sb.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT" || event === "SIGNED_IN") load();
+      if (event === "SIGNED_OUT" || event === "SIGNED_IN") setTimeout(run, 0);
     });
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      alive = false;
+      sub.subscription.unsubscribe();
+    };
   }, [load]);
 
   /** Optimistic update + write-through. Rolls back if persistence fails. */

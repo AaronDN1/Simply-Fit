@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { SAFETY_PRINCIPLES, cloudError, getOpenAI, modelOptions, prepareAiAttachments, resolveCloudAi } from "@/lib/ai/server";
+import { SAFETY_PRINCIPLES, aiFailureMessage, cloudError, completionText, getOpenAI, modelOptions, prepareAiAttachments, resolveCloudAi } from "@/lib/ai/server";
 import { getRequestUser } from "@/lib/supabase/server";
 import { estimateFromConversation, type EstimateResult } from "@/lib/foods";
 
@@ -28,11 +28,11 @@ const SYSTEM = `${SAFETY_PRINCIPLES}
 Your job: turn what the user says they ate into a calorie and macro estimate they can review before logging.
 
 Rules:
-- Ask a concise follow-up ONLY when the answer would change the estimate meaningfully. Bundle questions into one short message (max 2 questions).
-- For rice, pasta, oats, grains, and meats given by weight, confirm whether the weight was cooked or uncooked/raw unless it's stated.
-- For foods where preparation adds real calories (meats, eggs, potatoes, vegetables, stir-fries, salads), ask about oil, butter, sauces, dressings, or toppings if not mentioned. Don't ask if they said "grilled", "plain", "no oil", etc. Ask at most once.
-- If a portion is missing, ask for an approximate amount (grams, ounces, cups, or a comparison like "a fist-sized portion"). For restaurant or packaged items, use typical published values and say so in the reply.
-- Only return status "ready" when you're reasonably confident. Use standard USDA-style values. Round calories to whole numbers and macros to 1 decimal.
+- A familiar food with a count or a common serving is enough. Eggs, toast, fruit, yogurt, a scoop of protein, a slice of pizza, and similar meals must come back as status "ready" on the first reply. Say the assumption in one short sentence. Do not ask about oil, butter, or cooked weight for those.
+- Ask one follow-up only when you cannot estimate at all: no amount of any kind, or a weighed grain or meat with no cooked-or-raw state. One short question, then stop.
+- If the user has already answered once, return status "ready". Use a typical portion for anything still vague and name that assumption. Never ask a second question.
+- For restaurant or packaged items, use typical published values and say so in the reply.
+- Use standard USDA-style values. Round calories to whole numbers and macros to 1 decimal.
 - When status is "ready", give the meal a simple, recognizable 2–5 word name based on its main ingredients, such as "Chicken Rice Bowl", "Berry Protein Oats", or "Eggs and Toast". Avoid generic names like "Meal" or "Lunch". Use an empty string when a useful name is not possible.
 - Split the meal into separate items (e.g. rice, chicken, olive oil). Put the amount and cooked/raw state in "quantity", e.g. "150 g cooked".
 - "meal" is breakfast, lunch, dinner, or snack if the user said so; otherwise null.
@@ -137,12 +137,11 @@ export async function POST(req: Request) {
         ],
       };
     });
-    const completion = await openai.chat.completions.create({
-      ...modelOptions({ maxTokens: 3000, temperature: 0.2 }),
-      messages: [{ role: "system", content: `${SYSTEM}\n${ctx}` }, ...userMessages] as never,
+    const raw = await completionText(openai, {
+      ...modelOptions({ maxTokens: 8000, temperature: 0.2 }),
+      messages: [{ role: "system", content: `${SYSTEM}\n${ctx}` }, ...userMessages],
       response_format: { type: "json_schema", json_schema: { name: "meal_estimate", strict: true, schema: SCHEMA as unknown as Record<string, unknown> } },
     });
-    const raw = completion.choices[0]?.message?.content ?? "{}";
     const result = AiResult.parse(JSON.parse(raw));
     const out: EstimateResult & { engine: string } = {
       status: result.status === "not_food" ? "unknown" : result.status,
@@ -155,9 +154,6 @@ export async function POST(req: Request) {
     return NextResponse.json(out);
   } catch (e) {
     console.error("nutrition ai error", e);
-    return NextResponse.json(
-      { error: "The AI service could not complete this estimate. Please try again." },
-      { status: 502 }
-    );
+    return NextResponse.json({ error: aiFailureMessage(e, "estimate") }, { status: 502 });
   }
 }

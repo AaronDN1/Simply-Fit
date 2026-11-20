@@ -12,7 +12,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { useToast } from "@/components/ui/toast";
 import { useStore } from "@/lib/store";
 import { deleteAccount, linkGoogle, linkedProviders, signOut, updateEmail, updatePassword } from "@/lib/auth";
-import { detectDevice, nativeBridge, PLATFORM_LABEL, type HealthPlatform } from "@/lib/health";
+import { detectDevice, HEALTH_SYNC_UI, nativeBridge, PLATFORM_LABEL, type HealthPlatform } from "@/lib/health";
 import { LegalLinks, SupportEmail } from "@/components/legal/document";
 import { AI_OFF_COPY, AI_ON_COPY } from "@/lib/legal";
 import { buildPlan } from "@/lib/plan";
@@ -202,7 +202,7 @@ export default function SettingsPage() {
           </div>
         </Section>
 
-        <Section id="health" title="Health data" description="Steps, sleep, workouts, and weight.">
+        {HEALTH_SYNC_UI && <Section id="health" title="Health data" description="Steps, sleep, workouts, and weight.">
           {nativePlatform ? (
           <div className="space-y-2">
             {(["apple_health", "health_connect"] as HealthPlatform[]).map((p) => {
@@ -239,7 +239,7 @@ export default function SettingsPage() {
               This browser can't read Apple Health or Health Connect, and Simply Fit doesn't pull data from a watch or scale in the background. Log steps, sleep, cardio, and weight yourself. A future phone app will be able to sync them after you allow it.
             </p>
           )}
-        </Section>
+        </Section>}
 
         <Section title="Units">
           <div className="flex flex-wrap gap-3">
@@ -368,9 +368,11 @@ export default function SettingsPage() {
         }
         loading={busy === "delete"}
       />
-      <Sheet open={!!healthHelp} onClose={() => setHealthHelp(null)} title={`Connect ${healthHelp ? PLATFORM_LABEL[healthHelp] : ""}`}>
-        <HealthHelp platform={healthHelp} />
-      </Sheet>
+      {HEALTH_SYNC_UI && (
+        <Sheet open={!!healthHelp} onClose={() => setHealthHelp(null)} title={`Connect ${healthHelp ? PLATFORM_LABEL[healthHelp] : ""}`}>
+          <HealthHelp platform={healthHelp} />
+        </Sheet>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { SAFETY_PRINCIPLES, cloudError, getOpenAI, modelOptions, prepareAiAttachments, resolveCloudAi } from "@/lib/ai/server";
+import { SAFETY_PRINCIPLES, aiFailureMessage, cloudError, completionText, getOpenAI, modelOptions, prepareAiAttachments, resolveCloudAi } from "@/lib/ai/server";
 import { getRequestUser } from "@/lib/supabase/server";
 import { EXERCISES, recommendedSplit } from "@/lib/workouts";
 import type { EquipmentAccess, Split, TrainingStyle } from "@/lib/types";
@@ -174,7 +174,7 @@ export async function POST(req: Request) {
 ${currentSplit ? `Current split:\n${currentSplit}\n` : ""}Request: ${request}${prepared.transcripts.length ? `\nVoice note transcript: ${prepared.transcripts.join(" ")}` : ""}` },
       ...prepared.images,
     ];
-    const completion = await openai.chat.completions.create({
+    const raw = await completionText(openai, {
       ...modelOptions({ maxTokens: 8000, temperature: 0.3 }),
       response_format: { type: "json_schema", json_schema: { name: "weekly_split", strict: true, schema: SCHEMA } },
       messages: [
@@ -193,9 +193,9 @@ Only use equipment the user has. Use sensible volumes (10–20 hard sets per mus
           role: "user",
           content: requestContent,
         },
-      ] as never,
+      ],
     });
-    const result = AiSplit.parse(JSON.parse(completion.choices[0]?.message?.content ?? "{}"));
+    const result = AiSplit.parse(JSON.parse(raw));
     const split: Split = {
       id: crypto.randomUUID(),
       name: result.name,
@@ -228,9 +228,6 @@ Only use equipment the user has. Use sensible volumes (10–20 hard sets per mus
     return NextResponse.json({ reply: result.reply, split, engine: "openai" });
   } catch (e) {
     console.error("coach ai error", e);
-    return NextResponse.json(
-      { error: "The AI service could not complete this plan. Please try again." },
-      { status: 502 }
-    );
+    return NextResponse.json({ error: aiFailureMessage(e, "plan") }, { status: 502 });
   }
 }

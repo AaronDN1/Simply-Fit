@@ -1,6 +1,6 @@
 import type { EnergyBreakdown, Goal, Intake, Plan, PlanLevers, Settings } from "./types";
 import { clamp, round } from "./utils";
-import { displayWeight, formatRate } from "./units";
+import { displayWeight, formatRate, lbToKg } from "./units";
 
 /** ~7,700 kcal per kg of body-weight change is the standard planning approximation. */
 export const KCAL_PER_KG = 7700;
@@ -64,16 +64,66 @@ export function maintenanceFrom(b: EnergyBreakdown) {
   return b.baseline + b.steps + b.lifting + b.cardio + b.lifestyle;
 }
 
-export function calorieFloor(intake: Intake) {
-  const sexFloor = intake.sex === "female" ? 1200 : intake.sex === "male" ? 1500 : 1350;
-  return Math.max(sexFloor, Math.round(bmr(intake)));
+/** Lowest calorie target a plan can use. Below this, the pace is recalculated to match. */
+export const MIN_CALORIES = 1000;
+/** Highest calorie target a plan can use. Above this, the pace is recalculated to match. */
+export const MAX_CALORIES = 7000;
+
+/** Fastest loss the pace control will set. Calorie targets can imply a faster pace. */
+export const MAX_RECOMMENDED_LOSS_LB = 2;
+
+export function maxRecommendedLossKg() {
+  return -lbToKg(MAX_RECOMMENDED_LOSS_LB);
 }
 
-/** Safe bounds for weekly change, in kg (signed). */
+export function recommendedLossLabel(units: Settings["units"]) {
+  if (units.weight === "lb") return `${MAX_RECOMMENDED_LOSS_LB} lb`;
+  return `${displayWeight(lbToKg(MAX_RECOMMENDED_LOSS_LB), units, 2)} kg`;
+}
+
+/** True when the pace the UI would show is faster than the recommended loss. */
+export function exceedsRecommendedLoss(kgPerWeek: number, units: Settings["units"]) {
+  if (kgPerWeek >= 0) return false;
+  const shown = Math.abs(displayWeight(kgPerWeek, units, units.weight === "lb" ? 1 : 2));
+  const limit = units.weight === "lb" ? MAX_RECOMMENDED_LOSS_LB : displayWeight(lbToKg(MAX_RECOMMENDED_LOSS_LB), units, 2);
+  return shown > limit;
+}
+
+export function aggressiveLossMessage(units: Settings["units"]) {
+  return `We don't recommend losing faster than ${recommendedLossLabel(units)} a week. Anything more can be harmful and raises the risk of muscle loss.`;
+}
+
+/**
+ * Fastest gain that still favors muscle. About 0.5% of body weight per week —
+ * past that, a larger share of the weight gained is fat.
+ */
+export function recommendedGainKg(intake: Intake) {
+  return round(intake.weightKg * 0.005, 0.01);
+}
+
+export function recommendedGainLabel(intake: Intake, units: Settings["units"]) {
+  const digits = units.weight === "lb" ? 1 : 2;
+  return `${displayWeight(recommendedGainKg(intake), units, digits)} ${units.weight}`;
+}
+
+/** True when the pace the UI would show is faster than the recommended gain. */
+export function exceedsRecommendedGain(kgPerWeek: number, intake: Intake, units: Settings["units"]) {
+  if (kgPerWeek <= 0) return false;
+  const digits = units.weight === "lb" ? 1 : 2;
+  const shown = displayWeight(kgPerWeek, units, digits);
+  const limit = displayWeight(recommendedGainKg(intake), units, digits);
+  return shown > limit;
+}
+
+export function aggressiveGainMessage(intake: Intake, units: Settings["units"]) {
+  return `We don't recommend gaining faster than ${recommendedGainLabel(intake, units)} a week. Past that it isn't optimal, and more of the weight you gain will be fat than muscle.`;
+}
+
+/** Bounds for the pace control, in kg (signed). Loss stops at 2 lb/week; gain at ~0.5% of body weight. */
 export function rateBounds(intake: Intake) {
   return {
-    maxLoss: -round(intake.weightKg * 0.01, 0.01),
-    maxGain: round(intake.weightKg * 0.005, 0.01),
+    maxLoss: maxRecommendedLossKg(),
+    maxGain: recommendedGainKg(intake),
   };
 }
 
@@ -129,30 +179,33 @@ interface BuildOptions {
 export function buildPlan(intake: Intake, leversIn: PlanLevers, opts: BuildOptions = {}): Plan {
   const units = opts.units ?? { weight: "lb", height: "imperial" };
   const warnings: string[] = [];
-  const { maxLoss, maxGain } = rateBounds(intake);
-  const levers: PlanLevers = {
-    weeklyRateKg: clamp(leversIn.weeklyRateKg, maxLoss, maxGain),
+  // The pace control has its own limits. A calorie target between 1,000 and 7,000
+  // is kept as-is, and the pace shown is the one that target actually implies.
+  let weeklyRateKg = leversIn.weeklyRateKg;
+  const activity = {
     stepTarget: clamp(round(leversIn.stepTarget, 500), 3000, 25000),
     cardioMinutesPerWeek: clamp(round(leversIn.cardioMinutesPerWeek, 10), 0, 600),
     liftingDays: clamp(Math.round(leversIn.liftingDays), 0, 7),
   };
 
-  const breakdown = energyBreakdown(intake, levers);
+  const breakdown = energyBreakdown(intake, activity);
   const maintenance = maintenanceFrom(breakdown);
-  let target = maintenance + (levers.weeklyRateKg * KCAL_PER_KG) / 7;
-  const floor = calorieFloor(intake);
-  if (target < floor) {
-    target = floor;
-    levers.weeklyRateKg = round(((target - maintenance) * 7) / KCAL_PER_KG, 0.01);
-    warnings.push(
-      `Calories are held at ${floor} — the lowest we'll recommend for you — so your pace is adjusted to match.`
-    );
+  let target = maintenance + (weeklyRateKg * KCAL_PER_KG) / 7;
+  if (target < MIN_CALORIES) {
+    target = MIN_CALORIES;
+    weeklyRateKg = ((target - maintenance) * 7) / KCAL_PER_KG;
+    warnings.push(`Calories stay at ${MIN_CALORIES.toLocaleString()} — the lowest available — so the pace matches that intake.`);
+  } else if (target > MAX_CALORIES) {
+    target = MAX_CALORIES;
+    weeklyRateKg = ((target - maintenance) * 7) / KCAL_PER_KG;
   }
-  target = round(target, 10);
+  weeklyRateKg = round(weeklyRateKg, 0.01);
+  target = clamp(round(target, 10), MIN_CALORIES, MAX_CALORIES);
+  const levers: PlanLevers = { weeklyRateKg, ...activity };
 
   const refKg = referenceWeightKg(intake);
-  const proteinPerKg =
-    intake.goal === "fat_loss" || intake.goal === "recomp" ? 2.0 : intake.goal === "muscle_gain" ? 1.8 : intake.goal === "endurance" ? 1.6 : 1.6;
+  // 1 g/lb is about 2.2 g/kg. These sit a step under that: ~0.95, ~0.91, and ~0.82 g/lb.
+  const proteinPerKg = intake.goal === "fat_loss" || intake.goal === "recomp" ? 2.1 : intake.goal === "muscle_gain" ? 2.0 : 1.8;
   let proteinG = round(refKg * proteinPerKg, 5);
   const fatShare = intake.goal === "endurance" ? 0.25 : 0.27;
   let fatG = round(Math.max((target * fatShare) / 9, intake.weightKg * 0.6), 1);
@@ -182,11 +235,15 @@ export function buildPlan(intake: Intake, leversIn: PlanLevers, opts: BuildOptio
   );
   if (levers.weeklyRateKg < -0.01)
     explanation.push(
-      `Eating ${target.toLocaleString()} creates a ~${round(maintenance - target, 10)} calorie daily gap, which works out to about ${fmtW(levers.weeklyRateKg)} per week. That pace is sustainable and protects muscle.`
+      exceedsRecommendedLoss(levers.weeklyRateKg, units)
+        ? `Eating ${target.toLocaleString()} creates a ~${round(maintenance - target, 10)} calorie daily gap, about ${fmtW(levers.weeklyRateKg)} per week — faster than the ${recommendedLossLabel(units)} a week we recommend.`
+        : `Eating ${target.toLocaleString()} creates a ~${round(maintenance - target, 10)} calorie daily gap, which works out to about ${fmtW(levers.weeklyRateKg)} per week. That pace is sustainable and protects muscle.`
     );
   else if (levers.weeklyRateKg > 0.01)
     explanation.push(
-      `Eating ${target.toLocaleString()} gives a modest ~${round(target - maintenance, 10)} calorie surplus — about ${fmtW(levers.weeklyRateKg)} per week, which favors muscle over fat gain.`
+      exceedsRecommendedGain(levers.weeklyRateKg, intake, units)
+        ? `Eating ${target.toLocaleString()} gives a ~${round(target - maintenance, 10)} calorie surplus — about ${fmtW(levers.weeklyRateKg)} per week, faster than the ${recommendedGainLabel(intake, units)} a week we recommend.`
+        : `Eating ${target.toLocaleString()} gives a ~${round(target - maintenance, 10)} calorie surplus — about ${fmtW(levers.weeklyRateKg)} per week, which favors muscle over fat gain.`
     );
   else explanation.push(`Eating close to maintenance keeps your weight stable while training drives the changes.`);
   explanation.push(
@@ -243,8 +300,8 @@ export function caloriesForMacros(macros: MacroTargets) {
 /** Applies user-selected macros and recalculates the implied calorie target and pace. */
 export function applyMacroTargets(intake: Intake, plan: Plan, macros: MacroTargets, units?: Settings["units"]): Plan {
   const calorieTarget = round(caloriesForMacros(macros), 10);
-  const bounds = rateBounds(intake);
-  const weeklyRateKg = clamp(rateForCalories(intake, plan.levers, calorieTarget), bounds.maxLoss, bounds.maxGain);
+  // Keep the pace honest, including when the total implies a loss faster than 2 lb/week.
+  const weeklyRateKg = round(rateForCalories(intake, plan.levers, calorieTarget), 0.01);
   const next: Plan = {
     ...plan,
     levers: { ...plan.levers, weeklyRateKg: round(weeklyRateKg, 0.01) },
@@ -261,51 +318,6 @@ export function applyMacroTargets(intake: Intake, plan: Plan, macros: MacroTarge
     `Macros are manually set to ${next.proteinG} g protein, ${next.carbsG} g carbs, and ${next.fatG} g fat (${calorieTarget.toLocaleString()} kcal). That implies a pace of ${rateText} at your current activity and maintenance estimate.`,
   ];
   return next;
-}
-
-/**
- * Plain-language explanation of what changed between two plans and what it costs.
- * Returns short sentences the UI can show directly under the sliders.
- */
-export function explainTradeoff(intake: Intake, before: Plan, after: Plan, units: Settings["units"]): string[] {
-  const out: string[] = [];
-  const w = intake.weightKg;
-  const dCal = after.calorieTarget - before.calorieTarget;
-  const dRate = after.levers.weeklyRateKg - before.levers.weeklyRateKg;
-  const dSteps = after.levers.stepTarget - before.levers.stepTarget;
-  const dCardio = after.levers.cardioMinutesPerWeek - before.levers.cardioMinutesPerWeek;
-  const dDays = after.levers.liftingDays - before.levers.liftingDays;
-  const unit = units.weight;
-  const fmtRate = (kg: number) => `${Math.abs(displayWeight(kg, units, 2))} ${unit}/week`;
-
-  const activityChanged = dSteps !== 0 || dCardio !== 0 || dDays !== 0;
-
-  if (activityChanged) {
-    const parts: string[] = [];
-    if (dSteps) parts.push(`${dSteps > 0 ? "+" : ""}${dSteps.toLocaleString()} steps/day`);
-    if (dCardio) parts.push(`${dCardio > 0 ? "+" : ""}${dCardio} cardio min/week`);
-    if (dDays) parts.push(`${dDays > 0 ? "+" : ""}${dDays} lifting day${Math.abs(dDays) === 1 ? "" : "s"}`);
-    const verb = dCal >= 0 ? "adds" : "removes";
-    out.push(`${parts.join(", ")} ${verb} about ${Math.abs(Math.round(dCal / 10) * 10)} calories of daily food at the same pace.`);
-  } else if (dCal !== 0) {
-    if (Math.abs(dRate) > 0.004) {
-      const losing = after.levers.weeklyRateKg < 0;
-      const slower = losing ? dCal > 0 : dCal < 0;
-      out.push(
-        `${dCal > 0 ? "Eating" : "Cutting"} ${Math.abs(dCal)} ${dCal > 0 ? "more" : "fewer"} calories a day moves your pace to ${after.levers.weeklyRateKg === 0 ? "maintenance" : fmtRate(after.levers.weeklyRateKg)} — ${slower ? "slower, but easier to stick with" : "faster, but harder to sustain"}.`
-      );
-    }
-    if (dCal > 0 && after.levers.weeklyRateKg < 0) {
-      const steps = Math.round((dCal / kcalPerThousandSteps(w)) * 1000 / 500) * 500;
-      const mins = Math.round(((dCal * 7) / kcalPerCardioMinute(w)) / 10) * 10;
-      out.push(`To keep your original pace instead, you could add about ${steps.toLocaleString()} steps a day or ${mins} minutes of cardio a week.`);
-    }
-  }
-  if (dDays < 0 && after.levers.liftingDays < 3 && intake.goal === "muscle_gain")
-    out.push("Fewer than 3 lifting days makes muscle gain slower — make each session count.");
-  if (dDays > 0 && after.levers.liftingDays >= 6) out.push("Six-plus training days need good sleep and food to recover from.");
-  if (after.warnings.length) out.push(...after.warnings);
-  return out;
 }
 
 /** Simple readiness score 0–100 from a 1–5 check-in (soreness and stress are inverted). */

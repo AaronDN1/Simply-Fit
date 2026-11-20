@@ -14,7 +14,7 @@ import { nextActionCopy, todayPlan, type ActionKey } from "@/lib/today";
 import { average, latest, sleepSeries, stepSeries, weightSeries, weightTrend } from "@/lib/stats";
 import { displayWeight, formatWeight } from "@/lib/units";
 import { readinessAdvice, readinessScore } from "@/lib/plan";
-import { nativeBridge } from "@/lib/health";
+import { HEALTH_SYNC_UI, nativeBridge } from "@/lib/health";
 import { mealForTime } from "@/lib/foods";
 import { WorkoutCheckoff } from "@/components/app/workout-checkoff";
 import { cn, formatDay, greeting, lastNDays, todayISO } from "@/lib/utils";
@@ -89,7 +89,7 @@ export default function TodayPage() {
           <AnimatedNumber value={t.steps} /> <span className="text-muted">/ {(plan.levers.stepTarget / 1000).toFixed(plan.levers.stepTarget % 1000 ? 1 : 0)}k</span>
         </>
       ),
-      sub: nativePlatform && t.log?.stepsSource && t.log.stepsSource !== "manual" ? "Synced from your phone" : "Tap to update",
+      sub: HEALTH_SYNC_UI && nativePlatform && t.log?.stepsSource && t.log.stepsSource !== "manual" ? "Synced from your phone" : "Tap to update",
       progress: t.steps / plan.levers.stepTarget,
       tone: "var(--color-accent)",
     },
@@ -367,7 +367,7 @@ function Detail({ k, close }: { k: DetailKey; close: () => void }) {
         <MiniBars values={series} target={plan.levers.stepTarget} labels={labels} height={90} className="mt-5" />
         <p className="mb-2 mt-6 text-[13px] font-medium text-ink-soft">Today's steps</p>
         <StepsForm onDone={close} />
-        <p className="mt-3 text-[12px] text-muted">Enter today's steps here. This browser doesn't sync a phone or watch.</p>
+        {HEALTH_SYNC_UI && <p className="mt-3 text-[12px] text-muted">Enter today's steps here. This browser doesn't sync a phone or watch.</p>}
       </div>
     );
   }

@@ -46,7 +46,7 @@ export default function TermsPage() {
           When cloud AI is on, meal text, photos, voice notes, diet preferences, and allergies are sent to OpenAI to produce a reply, as the privacy policy describes. When it is off, those requests stay with the built-in estimator. AI output can be inaccurate, incomplete, or unsuitable. We do not guarantee that an AI feature will be available or that a reply is fit for a particular purpose.
         </p>
         <p>
-          If Supabase is not configured, the app runs as a local demo and keeps data in that browser. The hosted app stores the account and logs with Supabase. Google processes sign-in if you choose Google. This website does not read Apple Health, Health Connect, or a smart scale.
+          If Supabase is not configured, the app runs as a local demo and keeps data in that browser. The hosted app stores the account and logs with Supabase. Google processes sign-in if you choose Google. Steps, sleep, workouts, and weight are the numbers you type in.
         </p>
         <p>We may change, limit, or remove any feature, including plans, estimates, and AI tools. We do not promise uninterrupted, secure, or error-free operation.</p>
       </LegalSection>
