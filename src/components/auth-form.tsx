@@ -8,6 +8,7 @@ import { MailCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { authMode, signInWithEmail, signInWithGoogle, signUpWithEmail, startDemoSession } from "@/lib/auth";
+import type { PaidPlan } from "@/lib/billing";
 import { LegalAcceptFields } from "@/components/legal/document";
 import { LEGAL_ACCEPT_KEY, LEGAL_VERSION } from "@/lib/legal";
 import { buildDemoSnapshot } from "@/lib/data/seed";
@@ -29,6 +30,9 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
   const params = useSearchParams();
   const rawNext = params.get("next") || "/today";
   const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/today";
+  const requestedPlan = params.get("plan");
+  const paidPlan: PaidPlan | null = requestedPlan === "paid" || requestedPlan === "unlimited" ? requestedPlan : null;
+  const afterAccount = paidPlan ? `/billing/continue?plan=${paidPlan}` : mode === "signup" ? "/onboarding" : next;
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -47,14 +51,14 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
     setLoading("email");
     try {
       if (mode === "signup") {
-        const { needsConfirmation } = await signUpWithEmail(email.trim(), password, name.trim());
+        const { needsConfirmation } = await signUpWithEmail(email.trim(), password, name.trim(), afterAccount);
         sessionStorage.setItem(LEGAL_ACCEPT_KEY, LEGAL_VERSION);
         if (needsConfirmation) return setSent(true);
-        window.location.assign("/onboarding");
+        window.location.assign(afterAccount);
         return;
       }
       await signInWithEmail(email.trim(), password, remember);
-      window.location.assign(next);
+      window.location.assign(paidPlan ? afterAccount : next);
       return;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -69,7 +73,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
     if (mode === "signup") sessionStorage.setItem(LEGAL_ACCEPT_KEY, LEGAL_VERSION);
     setLoading("google");
     try {
-      await signInWithGoogle(mode === "signup" ? "/onboarding" : next, remember);
+      await signInWithGoogle(paidPlan ? afterAccount : mode === "signup" ? "/onboarding" : next, remember);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't start Google sign-in.");
       setLoading(null);
@@ -91,7 +95,8 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
         </div>
         <h1 className="font-display text-[34px] leading-tight">Check your inbox</h1>
         <p className="mt-2 text-[15px] text-muted">
-          We sent a confirmation link to <span className="text-ink">{email}</span>. Open it on this device to start building your plan.
+          We sent a confirmation link to <span className="text-ink">{email}</span>. Open it on this device
+          {paidPlan ? ", and checkout for your plan opens next." : " to start building your plan."}
         </p>
       </motion.div>
     );
@@ -100,7 +105,13 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
       <h1 className="font-display text-[38px] leading-[1.05] tracking-tight">{mode === "signup" ? "Build your plan" : "Welcome back"}</h1>
-      <p className="mt-2 text-[15px] text-muted">{mode === "signup" ? "Create an account — it takes about three minutes to get your plan." : "Sign in to see what's on for today."}</p>
+      <p className="mt-2 text-[15px] text-muted">
+        {paidPlan
+          ? `Create your account first. Checkout for ${paidPlan === "paid" ? "Paid" : "Unlimited"} opens after that.`
+          : mode === "signup"
+            ? "Create an account — it takes about three minutes to get your plan."
+            : "Sign in to see what's on for today."}
+      </p>
 
       {mode === "signup" && (
         <LegalAcceptFields
@@ -161,7 +172,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
 
       <p className="mt-6 text-center text-sm text-muted">
         {mode === "signup" ? "Already have an account? " : "New to Simply Fit? "}
-        <Link href={mode === "signup" ? "/login" : "/signup"} className="font-medium text-ink underline-offset-4 hover:underline">
+        <Link href={paidPlan ? `${mode === "signup" ? "/login" : "/signup"}?plan=${paidPlan}` : mode === "signup" ? "/login" : "/signup"} className="font-medium text-ink underline-offset-4 hover:underline">
           {mode === "signup" ? "Sign in" : "Create an account"}
         </Link>
       </p>

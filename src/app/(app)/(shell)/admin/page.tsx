@@ -168,7 +168,9 @@ export default function AdminPage() {
                       {mine && <Badge>You</Badge>}
                       {locked && !mine && <Badge tone="accent">Admin</Badge>}
                       {user.disabledAt && <Badge tone="clay">Disabled</Badge>}
-                      {user.planAccess === "granted" && <Badge tone="honey">Plan</Badge>}
+                      {user.planAccess === "granted" && <Badge tone="honey">Granted</Badge>}
+                      {user.planAccess === "paid" && <Badge tone="honey">Paid</Badge>}
+                      {user.planAccess === "unlimited" && <Badge tone="honey">Unlimited</Badge>}
                     </span>
                     <span className="mt-0.5 block truncate text-[13px] text-muted">{user.email || "No email"}</span>
                   </span>
@@ -294,12 +296,22 @@ function AccountSheet({
             <p className="flex items-center gap-1.5 text-[14px] font-medium">
               <Shield className="size-3.5 text-muted" /> Plan access
             </p>
-            <p className="mt-0.5 text-[13px] text-muted">Plans are coming soon. This saves whether the account will have access when they open.</p>
+            <p className="mt-0.5 text-[13px] text-muted">
+              {user.planAccess === "paid"
+                ? "Paid subscription through Stripe."
+                : user.planAccess === "unlimited"
+                  ? "Unlimited subscription through Stripe."
+                  : user.planAccess === "granted"
+                    ? "Complimentary access, with no Stripe subscription."
+                    : "Free account. Grant gives complimentary Unlimited access."}
+            </p>
           </div>
           {user.planAccess === "granted" ? (
             <Button size="sm" variant="secondary" onClick={() => onPlan("none")} loading={busy === "plan"}>
               Remove
             </Button>
+          ) : user.planAccess === "paid" || user.planAccess === "unlimited" ? (
+            <span className="text-[13px] capitalize text-muted">{user.planAccess}</span>
           ) : (
             <Button size="sm" onClick={() => onPlan("granted")} loading={busy === "plan"}>
               Grant

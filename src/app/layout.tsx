@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Geist, Instrument_Serif } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { THEME_BOOT, THEME_COLOR } from "@/lib/theme-boot";
@@ -24,12 +25,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${geist.variable} ${serif.variable}`} suppressHydrationWarning>
       <body>
-        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){if(!("serviceWorker"in navigator))return;navigator.serviceWorker.getRegistrations().then(function(regs){if(!regs.length)return;Promise.all(regs.map(function(r){return r.unregister()})).then(function(){if(navigator.serviceWorker.controller)location.reload()})})})();`,
-          }}
-        />
+        <Script id="theme-boot" strategy="beforeInteractive">
+          {THEME_BOOT}
+        </Script>
+        <Script id="sw-reset" strategy="beforeInteractive">
+          {`(function(){if(!("serviceWorker"in navigator))return;navigator.serviceWorker.getRegistrations().then(function(regs){if(!regs.length)return;Promise.all(regs.map(function(r){return r.unregister()})).then(function(){if(navigator.serviceWorker.controller)location.reload()})})})();`}
+        </Script>
         <Providers>{children}</Providers>
       </body>
     </html>

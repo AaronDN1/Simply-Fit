@@ -4,7 +4,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { LandingAuthAction } from "@/components/landing/auth-action";
 import { Hero } from "@/components/landing/hero";
 import { LegalLinks, SupportEmail } from "@/components/legal/document";
-import { DashboardSection, FinalCta, HealthSection, HowItWorks, NutritionSection, PlansSection, ProgressSection } from "@/components/landing/sections";
+import { DashboardSection, FinalCta, HealthSection, HowItWorks, NutritionSection, PlansSection, PricingSection, ProgressSection } from "@/components/landing/sections";
 
 export default function LandingPage() {
   return (
@@ -38,6 +38,7 @@ export default function LandingPage() {
           <ProgressSection />
           <HealthSection />
         </div>
+        <PricingSection />
         <FinalCta />
       </main>
       <footer className="border-t border-line px-5 py-10 sm:px-8">

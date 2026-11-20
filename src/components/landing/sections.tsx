@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useInView } from "motion/react";
 import { Activity, ArrowRight, Check, Dumbbell, Footprints, HeartPulse, Moon, Scale, Sparkles, Timer } from "lucide-react";
+import { BillingAssurance, PlanCards, startPlan, useViewerPlan } from "@/components/billing/plan-cards";
 import { ButtonLink } from "@/components/ui/button";
 import { Slider } from "@/components/ui/field";
 import { MiniBars, Sparkline } from "@/components/ui/data";
 import { buildPlan, defaultLevers, rateForCalories } from "@/lib/plan";
+import type { AccountTier } from "@/lib/billing";
 import { EXAMPLE_INTAKE } from "@/lib/data/seed";
 import { formatRate } from "@/lib/units";
 import { cn } from "@/lib/utils";
@@ -343,6 +345,52 @@ export function HealthSection() {
             </div>
           </div>
         </Reveal>
+      </div>
+    </section>
+  );
+}
+
+/* ---------------- Pricing ---------------- */
+
+export function PricingSection() {
+  const viewer = useViewerPlan();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    const flag = new URLSearchParams(window.location.search).get("billing");
+    if (flag === "cancel") setNote("Checkout closed. Your plan is unchanged.");
+  }, []);
+
+  async function choose(plan: AccountTier) {
+    if (viewer.tier === plan) return;
+    if (!viewer.signedIn) {
+      window.location.assign(plan === "free" ? "/signup" : `/signup?plan=${plan}`);
+      return;
+    }
+    setBusy(plan);
+    setNote(null);
+    try {
+      await startPlan(plan, "/settings");
+    } catch (error) {
+      setNote(error instanceof Error ? error.message : "Couldn't open billing.");
+      setBusy(null);
+    }
+  }
+
+  return (
+    <section id="pricing" className="scroll-mt-20 px-5 py-24 sm:px-8 sm:py-28">
+      <div className="mx-auto max-w-6xl">
+        <SectionHead
+          kicker="Pricing"
+          title={<>Start free. Pay when the AI becomes the habit.</>}
+          body="The plan, the log, and your history stay on every account. A new Paid or Unlimited subscription starts with an account, then opens Stripe."
+        />
+        <div className="mt-12">
+          <PlanCards layout="marketing" current={viewer.tier} subscriber={viewer.subscriber} busy={busy} onChoose={choose} />
+          <BillingAssurance />
+          {note && <p className="mt-4 text-[13px] text-clay">{note}</p>}
+        </div>
       </div>
     </section>
   );

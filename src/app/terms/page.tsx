@@ -56,7 +56,7 @@ export default function TermsPage() {
           An account is a personal, revocable permission to use Simply Fit. It is not property, and it is not a right you can sell or transfer. You may have one account for yourself. You may not share it or create an account for someone else.
         </p>
         <p>
-          The service is offered without a paid subscription today. We may offer paid plans later. If we do, the price, the length, and whether it renews will be shown before you pay. Taxes that apply are yours. A fee is non-refundable except where a non-waivable law requires a refund, or where the purchase screen says otherwise.
+          Free includes the plan and a small amount of cloud AI. Paid is $12 a month. Unlimited is $29 a month. Both paid plans renew each month until you cancel. The price and the renewal are shown before you pay. Cancel in Settings, or in the billing portal Settings opens. Cancellation stops the next charge and leaves the paid plan in place until the period you already paid for ends. Taxes that apply are yours. A fee is non-refundable except where a non-waivable law requires a refund, or where the purchase screen says otherwise.
         </p>
         <p>
           Complimentary access, a granted plan, a test account, staff access, or any other relationship with Simply Fit is also a permission we can take back. None of those create a right to keep the account, a feature, or a price.

@@ -12,10 +12,13 @@ export function isAdminEmail(email: string | null | undefined) {
   return ADMIN_EMAILS.some((entry) => entry.toLowerCase() === normalized);
 }
 
+const ACCESS_PLANS = ["none", "free", "paid", "unlimited", "granted"] as const;
+
 export function readAccess(settings: Pick<Settings, "access"> | null | undefined): AccountAccess {
+  const plan = settings?.access?.plan;
   return {
     disabledAt: settings?.access?.disabledAt || null,
-    plan: settings?.access?.plan === "granted" ? "granted" : "none",
+    plan: ACCESS_PLANS.includes(plan as (typeof ACCESS_PLANS)[number]) ? (plan as AccountAccess["plan"]) : "none",
   };
 }
 

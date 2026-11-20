@@ -183,10 +183,21 @@ export interface WorkoutLog {
 
 export type HealthStatus = "not_connected" | "connected" | "unavailable";
 
-/** Saved by an admin. Plans are not on sale yet; `plan` is only the future entitlement. */
+/** `granted` is complimentary access from an admin. Paid tiers come from Stripe. */
 export interface AccountAccess {
   disabledAt: string | null;
-  plan: "none" | "granted";
+  plan: "none" | "free" | "paid" | "unlimited" | "granted";
+}
+
+export interface BillingState {
+  customerId: string | null;
+  subscriptionId: string | null;
+  status: "none" | "active" | "trialing" | "past_due" | "canceled" | "unpaid" | "incomplete";
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+  disputed: boolean;
+  refunded: boolean;
+  fraudWarning: boolean;
 }
 
 export interface Settings {
@@ -203,6 +214,7 @@ export interface Settings {
   health: { appleHealth: HealthStatus; healthConnect: HealthStatus; lastSyncAt: string | null };
   savedMeals: SavedMeal[];
   access?: AccountAccess;
+  billing?: BillingState;
 }
 
 export interface Profile {

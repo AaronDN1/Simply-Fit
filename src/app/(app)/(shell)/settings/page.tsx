@@ -19,6 +19,7 @@ import { buildPlan } from "@/lib/plan";
 import { displayWeight, inputWeightToKg } from "@/lib/units";
 import type { Settings } from "@/lib/types";
 import { addDays, cn, todayISO, uid } from "@/lib/utils";
+import { SubscriptionPanel } from "@/components/billing/subscription-panel";
 
 const DIETS = ["Vegetarian", "Vegan", "Pescatarian", "Halal", "Kosher", "Gluten-free", "Dairy-free", "Lower carb"];
 
@@ -297,6 +298,10 @@ export default function SettingsPage() {
               </Link>
             </div>
           </div>
+        </Section>
+
+        <Section id="subscription" title="Subscription" description="The plan you have stays put. Choose another one to open Stripe and confirm the change, the card, or a cancellation.">
+          <SubscriptionPanel />
         </Section>
 
         <Section title="Privacy" description="Your account data is stored for your plan. It is not sold.">

@@ -124,13 +124,14 @@ function assertNotImpersonating() {
   if (readImpersonation()) throw new Error("End impersonation before changing sign-in details.");
 }
 
-export async function signUpWithEmail(email: string, password: string, name: string) {
+export async function signUpWithEmail(email: string, password: string, name: string, next = "/onboarding") {
   const sb = getSupabaseBrowser();
+  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/onboarding";
   if (sb) {
     const { data, error } = await sb.auth.signUp({
       email,
       password,
-      options: { data: { full_name: name }, emailRedirectTo: `${siteUrl()}/auth/callback?next=/onboarding` },
+      options: { data: { full_name: name }, emailRedirectTo: `${siteUrl()}/auth/callback?next=${encodeURIComponent(safeNext)}` },
     });
     if (error) throw new Error(error.message);
     return { needsConfirmation: !data.session };

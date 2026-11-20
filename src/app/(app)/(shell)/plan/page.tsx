@@ -72,14 +72,15 @@ function PlanView() {
     Math.abs(preview.levers.weeklyRateKg - plan.levers.weeklyRateKg) > 0.001;
   const dirty = leversDirty || targetsDirty;
 
-  function setActivity(patch: Partial<Pick<PlanLevers, "stepTarget" | "cardioMinutesPerWeek">>) {
+  const setActivity = (patch: Partial<Pick<PlanLevers, "stepTarget" | "cardioMinutesPerWeek">>) => {
+    const known = intake;
     const calories = preview.calorieTarget;
     setMacroOverride(null);
     setDraft((d) => {
       const next = { ...d, ...patch };
-      return { ...next, weeklyRateKg: Math.round(rateForCalories(intake, next, calories) * 1000) / 1000 };
+      return { ...next, weeklyRateKg: Math.round(rateForCalories(known, next, calories) * 1000) / 1000 };
     });
-  }
+  };
 
   async function save() {
     setSaving(true);

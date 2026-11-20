@@ -97,7 +97,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setImpersonating(asSomeoneElse);
       const sb = getSupabaseBrowser();
       adapter.current = asSomeoneElse && viewing && sb ? createAdminActAdapter(viewing.id) : sb ? createSupabaseAdapter(sb, viewing ?? session) : createLocalAdapter(viewing ?? session);
-      setData(await adapter.current.load());
+      let snap = await adapter.current.load();
+      const claimKey = "sf-billing-claim";
+      if (!asSomeoneElse && sb && !snap.profile.settings.billing?.customerId && sessionStorage.getItem(claimKey) !== "1") {
+        sessionStorage.setItem(claimKey, "1");
+        const claim = await fetch("/api/billing/claim", { method: "POST" }).then((res) => res.json().catch(() => null)).catch(() => null);
+        if (claim && typeof claim === "object" && "attached" in claim && claim.attached) snap = await adapter.current.load();
+      }
+      setData(snap);
       setStatus("ready");
     } catch (e) {
       const message = e instanceof Error ? e.message : "Something went wrong loading your data.";

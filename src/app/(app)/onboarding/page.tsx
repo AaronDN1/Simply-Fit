@@ -17,6 +17,8 @@ import { ageBlockMessage, isEligibleAge } from "@/lib/legal";
 import { GOAL_LABEL, generatePlan, rateBounds } from "@/lib/plan";
 import { recommendedSplit, EQUIPMENT_LABEL } from "@/lib/workouts";
 import { useToast } from "@/components/ui/toast";
+import { PlanCards, startPaidCheckout } from "@/components/billing/plan-cards";
+import { accountTier, type AccountTier } from "@/lib/billing";
 
 type Draft = Omit<Intake, "age" | "heightCm" | "weightKg"> & { age: number | ""; heightCm: number | ""; weightKg: number | "" };
 
@@ -77,6 +79,8 @@ export default function OnboardingPage() {
   const [building, setBuilding] = useState(false);
   const [skipped, setSkipped] = useState<Set<string>>(() => new Set());
   const [readyPlan, setReadyPlan] = useState<Plan | null>(null);
+  const [choosingPlan, setChoosingPlan] = useState(false);
+  const [planBusy, setPlanBusy] = useState<string | null>(null);
   const buildRef = useRef<{ key: string; promise: Promise<Plan>; done?: Plan } | null>(null);
   const buildQueue = useRef(Promise.resolve());
 
@@ -172,13 +176,50 @@ export default function OnboardingPage() {
     const lines = assumptionLines(skipped, d);
     if (lines.length) sessionStorage.setItem("simplyfit:assumptions", JSON.stringify(lines));
     else sessionStorage.removeItem("simplyfit:assumptions");
-    router.replace("/plan?welcome=1");
+    if (accountTier(data.profile.settings.access?.plan) !== "free") {
+      router.replace("/plan?welcome=1");
+      return;
+    }
+    setChoosingPlan(true);
+  }
+
+  async function chooseAccountPlan(plan: AccountTier) {
+    if (plan === "free") {
+      setPlanBusy("free");
+      try {
+        await updateProfile((p) => ({ settings: { ...p.settings, access: { disabledAt: p.settings.access?.disabledAt ?? null, plan: "free" } } }));
+        router.replace("/plan?welcome=1");
+      } catch (e) {
+        toast(e instanceof Error ? e.message : "Couldn't save that plan.", "error");
+        setPlanBusy(null);
+      }
+      return;
+    }
+    setPlanBusy(plan);
+    try {
+      await startPaidCheckout(plan, "/plan?welcome=1");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Couldn't start checkout.", "error");
+      setPlanBusy(null);
+    }
   }
 
   const current = STEPS[step];
   const needsBody = step === 1;
 
   if (building) return <Building />;
+  if (choosingPlan) {
+    return (
+      <div className="mx-auto flex min-h-[100svh] w-full max-w-5xl flex-col px-5 py-8">
+        <Logo href="#" />
+        <h1 className="mt-10 font-display text-[40px] leading-[1.05] tracking-tight sm:text-[48px]">Choose how you want to use it</h1>
+        <p className="mt-3 max-w-xl text-[15px] text-muted">Free is enough to start. Paid and Unlimited add cloud AI. You can change or cancel later in Settings.</p>
+        <div className="mt-8">
+          <PlanCards busy={planBusy} onChoose={chooseAccountPlan} />
+        </div>
+      </div>
+    );
+  }
   if (readyPlan) return <PlanReveal plan={readyPlan} lines={assumptionLines(skipped, d)} goal={GOAL_LABEL[d.goal]} onContinue={continueToPlan} />;
 
   return (
@@ -729,7 +770,7 @@ function PlanReveal({ plan, lines, goal, onContinue }: { plan: Plan; lines: stri
       <p className="mt-4 text-[13px] leading-relaxed text-muted">General fitness guidance, not medical advice. Change anything that doesn't fit.</p>
       <div className="mt-8">
         <Button size="lg" onClick={onContinue}>
-          See the full plan <ArrowRight className="size-4" />
+          Choose a plan <ArrowRight className="size-4" />
         </Button>
       </div>
     </div>
